@@ -1,7 +1,6 @@
 codecov
 coverage
 dask
-edt
 imageio
 loguru
 matplotlib

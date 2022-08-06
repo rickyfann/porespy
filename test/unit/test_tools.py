@@ -4,7 +4,7 @@ import scipy.spatial as sptl
 import scipy.ndimage as spim
 import matplotlib.pyplot as plt
 import pytest
-from edt import edt
+import pyedt
 ps.settings.tqdm['disable'] = True
 
 

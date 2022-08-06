@@ -1,6 +1,6 @@
 import numpy as np
 import porespy as ps
-from edt import edt
+import pyedt
 import matplotlib.pyplot as plt
 import pandas as pd
 
@@ -17,7 +17,7 @@ def test_inverse_Bo_study():
     inlets[0, ...] = True
     outlets = np.zeros_like(im, dtype=bool)
     outlets[-1, ...] = True
-    dt = edt(im)
+    dt = np.sqrt(pyedt.edt(im))
     a = np.median(dt[dt > 0])*vx*2
 
     sim1 = {}

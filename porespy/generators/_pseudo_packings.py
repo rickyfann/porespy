@@ -1,7 +1,7 @@
 import numba
 import numpy as np
 import scipy.ndimage as spim
-from edt import edt
+import pyedt
 from skimage.morphology import disk, ball
 from porespy import settings
 from porespy.tools import get_tqdm, ps_round, get_border
@@ -138,12 +138,12 @@ def pseudo_electrostatic_packing(im, r, sites=None,
     """
     random.seed(0)
     im_temp = np.zeros_like(im, dtype=bool)
-    dt_im = edt(im)
+    dt_im = np.sqrt(pyedt.edt(im))
     if sites is None:
         dt2 = spim.gaussian_filter(dt_im, sigma=0.5)
         strel = ps_round(r, ndim=im.ndim, smooth=True)
         sites = (spim.maximum_filter(dt2, footprint=strel) == dt2)*im
-    dt = edt(sites == 0).astype(int)
+    dt = np.sqrt(edt(sites == 0)).astype(int)
     sites = (sites == 0)*(dt_im >= (r - protrusion))
     if dt_im.max() < np.inf:
         dtmax = int(dt_im.max()*2)

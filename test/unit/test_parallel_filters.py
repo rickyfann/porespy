@@ -1,5 +1,5 @@
 import numpy as np
-from edt import edt
+import pyedt
 import porespy as ps
 import scipy.ndimage as spim
 from skimage.morphology import skeletonize_3d
@@ -13,18 +13,18 @@ class ParallelTest():
         self.im = ps.generators.blobs(shape=[100, 100, 100], blobiness=2)
         # Ensure that im was generated as expeccted
         assert ps.metrics.porosity(self.im) == 0.499829
-        self.im_dt = edt(self.im)
+        self.im_dt = np.sqrt(pyedt.edt(self.im))
 
     def test_find_peaks_2D(self):
         im = ps.generators.blobs(shape=[200, 200], blobiness=2)
-        dt = edt(im)
+        dt = np.sqrt(pyedt.edt(im))
         mx_serial = ps.filters.find_peaks(dt=dt)
         mx_parallel_1 = ps.filters.find_peaks(dt=dt, divs=2)
         assert np.all(mx_serial == mx_parallel_1)
 
     def test_find_peaks_3D(self):
         im = ps.generators.blobs(shape=[100, 100, 100], blobiness=2)
-        dt = edt(im)
+        dt = np.sqrt(pyedt.edt(im))
         mx_serial = ps.filters.find_peaks(dt=dt)
         mx_parallel_1 = ps.filters.find_peaks(dt=dt, divs=2)
         assert np.all(mx_serial == mx_parallel_1)

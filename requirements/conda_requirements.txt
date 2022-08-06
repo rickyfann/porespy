@@ -1,6 +1,5 @@
 dask
 deprecated
-edt
 imageio
 loguru
 matplotlib

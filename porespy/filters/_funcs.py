@@ -1,7 +1,7 @@
 import inspect as insp
 import dask
 import numpy as np
-from edt import edt
+import pyedt
 import operator as op
 import scipy.ndimage as spim
 from skimage.morphology import reconstruction
@@ -966,7 +966,7 @@ def porosimetry(im, sizes=25, inlets=None, access_limited=True, mode='hybrid',
     """
     from porespy.filters import fftmorphology
     im = np.squeeze(im)
-    dt = edt(im > 0)
+    dt = np.sqrt(pyedt.edt(im > 0))
 
     if inlets is None:
         inlets = get_border(im.shape, mode="faces")
@@ -1026,12 +1026,12 @@ def porosimetry(im, sizes=25, inlets=None, access_limited=True, mode='hybrid',
                                                  strel=strel_2(1))
             if np.any(imtemp):
                 if parallel:
-                    imtemp = chunked_func(func=edt,
+                    imtemp = chunked_func(func=lambda x: np.sqrt(pyedt.edt(x)),
                                           data=~imtemp, im_arg='data',
                                           overlap=int(r) + 1, parallel=0,
                                           cores=settings.ncores, divs=divs) < r
                 else:
-                    imtemp = edt(~imtemp) < r
+                    imtemp = pyedt.edt(~imtemp) < r**2
                 imresults[(imresults == 0) * imtemp] = r
     elif mode == "hybrid":
         imresults = np.zeros(np.shape(im))

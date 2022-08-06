@@ -1,6 +1,6 @@
 import numpy as np
 import inspect as insp
-from edt import edt
+import pyedt
 import porespy as ps
 from numba import njit
 import scipy.spatial as sptl
@@ -226,8 +226,8 @@ def rsa(im_or_shape: np.array,
     # Dilate existing objects by strel to remove pixels near them
     # from consideration for sphere placement
     logger.trace("Dilating foreground features by sphere radius")
-    dt = edt(im == 0)
-    options_im = dt >= r
+    dt = pyedt.edt(im == 0)
+    options_im = dt >= r**2
     # Begin inserting the spheres
     vf = vf_start
     free_sites = np.flatnonzero(options_im)
@@ -502,7 +502,7 @@ def voronoi_edges(shape: List[int], ncells: int, r: int = 0,
             line_pts = line_segment(pts[0], pts[1])
             im[tuple(line_pts)] = True
     im = extract_subsection(im=im, shape=shape)
-    im = edt(~im) > r
+    im = pyedt.edt(~im) > r**2
     return im
 
 
@@ -674,9 +674,9 @@ def lattice_spheres(shape: List[int],
            offset[1]+int(spacing[1]/2)::spacing[1],
            offset[2]+int(spacing[2]/2)::spacing[2]] = True
     if smooth:
-        im = ~(edt(~im) < r)
+        im = ~(pyedt.edt(~im) < r**2)
     else:
-        im = ~(edt(~im) <= r)
+        im = ~(pyedt.edt(~im) <= r**2)
     return im
 
 
@@ -733,7 +733,7 @@ def overlapping_spheres(shape: List[int],
 
     # Helper functions for calculating porosity: phi = g(f(N))
     def f(N):
-        return edt(im > N / bulk_vol) < r
+        return pyedt.edt(im > N / bulk_vol) < r**2
 
     def g(im):
         r"""Returns fraction of 0s, given a binary image"""
@@ -945,7 +945,7 @@ def _cylinders(shape: List[int],
                 n += 1
                 pbar.update()
     im = np.array(im, dtype=bool)
-    dt = edt(~im) < r
+    dt = pyedt.edt(~im) < r**2
     return ~dt
 
 

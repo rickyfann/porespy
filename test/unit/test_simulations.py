@@ -1,6 +1,6 @@
 # import pytest
 import numpy as np
-from edt import edt
+import pyedt
 import porespy as ps
 import scipy.ndimage as spim
 from skimage.morphology import disk, ball, skeletonize_3d
@@ -15,12 +15,12 @@ class SimulationsTest():
         self.im = ps.generators.blobs(shape=[100, 100, 100], blobiness=2)
         # Ensure that im was generated as expeccted
         assert ps.metrics.porosity(self.im) == 0.499829
-        self.im_dt = edt(self.im)
+        self.im_dt = np.sqrt(pyedt.edt(self.im))
 
     def test_drainage_with_gravity(self):
         np.random.seed(2)
         im = ps.generators.blobs(shape=[100, 100], porosity=0.7)
-        dt = edt(im)
+        dt = np.sqrt(pyedt.edt(im))
         pc = -2*0.072*np.cos(np.deg2rad(180))/dt
         np.testing.assert_approx_equal(pc[im].max(), 0.144)
         drn = ps.simulations.drainage(pc=pc, im=im, voxel_size=1e-5, g=9.81)

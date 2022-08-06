@@ -67,7 +67,7 @@ setup(
     install_requires=[
         'dask',
         'deprecated',
-        'edt',
+        #'pyedt',
         'imageio',
         'loguru',
         'matplotlib',

@@ -2,7 +2,7 @@ import dask.array as da
 import inspect as insp
 import numpy as np
 from numba import njit, prange
-from edt import edt
+import pyedt
 import scipy.ndimage as spim
 import scipy.spatial as sptl
 from skimage.segmentation import watershed
@@ -89,10 +89,10 @@ def snow_partitioning(im, dt=None, r_max=4, sigma=0.4, peaks=None):
     if dt is None:
         logger.trace("Peforming distance transform")
         if np.any(im_shape == 1):
-            dt = edt(im.squeeze())
+            dt = np.sqrt(pyedt.edt(im.squeeze()))
             dt = dt.reshape(im_shape)
         else:
-            dt = edt(im)
+            dt = np.sqrt(pyedt.edt(im))
 
     if peaks is None:
         if sigma > 0:
@@ -542,14 +542,14 @@ def _estimate_overlap(im, mode='dt', zoom=0.25):
     if mode == 'watershed':
         rev = spim.interpolation.zoom(im, zoom=zoom, order=0)
         rev = rev > 0
-        dt = edt(rev, parallel=0)
+        dt = np.sqrt(pyedt.edt(rev))
         rev_snow = snow_partitioning(rev, dt=dt)
         labels, counts = np.unique(rev_snow, return_counts=True)
         node = np.where(counts == counts[1:].max())[0][0]
         slices = spim.find_objects(rev_snow)
         overlap = max(rev_snow[slices[node - 1]].shape) / (zoom * 2.0)
     if mode == 'dt':
-        dt = edt((im > 0), parallel=0)
+        dt = np.sqrt(pyedt.edt((im > 0)))
         overlap = dt.max()
     return overlap
 
@@ -618,7 +618,7 @@ def snow_partitioning_parallel(im,
     overlap = overlap / 2.0
     logger.debug(f'Overlap thickness: {int(2 * overlap)} voxels')
 
-    dt = edt((im > 0), parallel=0)
+    dt = np.sqrt(pyedt.edt((im > 0)))
 
     # Get overlap and trim depth of all image dimension
     depth = {}

@@ -1,6 +1,6 @@
 import numpy as np
 from loguru import logger
-from edt import edt
+import pyedt
 from porespy.tools import get_tqdm, get_border
 from porespy.tools import Results
 tqdm = get_tqdm()
@@ -47,7 +47,7 @@ def ibip_gpu(im, dt=None, inlets=None, maxiter=10000):  # pragma: no cover
     from cupyx.scipy import ndimage as cndi
 
     im_gpu = cp.array(im)
-    dt = edt(cp.asnumpy(im)) if dt is None else dt
+    dt = np.sqrt(pyedt.edt(cp.asnumpy(im))) if dt is None else dt
     dt_gpu = cp.array(dt)
     inlets = get_border(shape=im.shape) if inlets is None else inlets
     inlets_gpu = cp.array(inlets)

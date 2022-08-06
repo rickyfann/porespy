@@ -1,7 +1,7 @@
 import numpy as np
 import scipy.ndimage as spim
 from skimage.morphology import disk, ball
-from edt import edt
+import pyedt
 from porespy.tools import extend_slice
 from porespy import settings
 from porespy.tools import get_tqdm, make_contiguous
@@ -9,6 +9,7 @@ from porespy.metrics import region_surface_areas, region_interface_areas
 from porespy.metrics import region_volumes
 from loguru import logger
 tqdm = get_tqdm()
+import edt
 
 
 def regions_to_network(regions, phases=None, voxel_size=1, accuracy='standard'):
@@ -117,9 +118,10 @@ def regions_to_network(regions, phases=None, voxel_size=1, accuracy='standard'):
     if im.size != phases.size:
         raise Exception('regions and phase are different sizes, probably ' +
                         'because boundary regions were not added to phases')
-    dt = edt(phases == 1)
+    #dt = np.sqrt(pyedt.edt(phases == 1))
+    dt = edt.edt(phases == 1)
     for i in range(2, phases.max()+1):
-        dt += edt(phases == i)
+        dt += np.sqrt(pyedt.edt(phases == i))
 
     # Get 'slices' into im for each pore region
     slices = spim.find_objects(im)
@@ -155,7 +157,8 @@ def regions_to_network(regions, phases=None, voxel_size=1, accuracy='standard'):
         sub_dt = dt[s]
         pore_im = sub_im == i
         padded_mask = np.pad(pore_im, pad_width=1, mode='constant')
-        pore_dt = edt(padded_mask)
+        #pore_dt = np.sqrt(pyedt.edt(padded_mask, force_method='cpu'))
+        pore_dt = edt.edt(padded_mask)
         s_offset = np.array([i.start for i in s])
         p_label[pore] = i
         p_coords_cm[pore, :] = spim.center_of_mass(pore_im) + s_offset

@@ -1,5 +1,5 @@
 import numpy as np
-from edt import edt
+import pyedt
 
 
 def cylindrical_plug(shape, r=None, axis=2):
@@ -30,10 +30,10 @@ def cylindrical_plug(shape, r=None, axis=2):
     if len(shape) == 3:
         im2d = np.ones(shape=shape[axes])
         im2d[int(shape[axes[0]]/2), int(shape[axes[1]]/2)] = 0
-        dt = edt(im2d)
+        dt = pyedt.edt(im2d)
         if r is None:
             r = int(min(shape[axes])/2)
-        circ = dt < r
+        circ = dt < r**2
         tile_ax = [1, 1, 1]
         tile_ax[axis] = shape[axis]
         circ = np.expand_dims(circ, axis)
@@ -41,8 +41,8 @@ def cylindrical_plug(shape, r=None, axis=2):
     if len(shape) == 2:
         im2d = np.ones(shape=shape)
         im2d[int(shape[0]/2), int(shape[1]/2)] = 0
-        dt = edt(im2d)
+        dt = pyedt.edt(im2d)
         if r is None:
             r = int(min(shape[axes])/2)
-        cyl = dt < r
+        cyl = dt < r**2
     return cyl

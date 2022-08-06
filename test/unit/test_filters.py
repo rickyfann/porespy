@@ -1,6 +1,6 @@
 import pytest
 import numpy as np
-from edt import edt
+import pyedt
 import porespy as ps
 import scipy.ndimage as spim
 from skimage.morphology import disk, ball, skeletonize_3d
@@ -15,7 +15,7 @@ class FilterTest():
         self.im = ps.generators.blobs(shape=[100, 100, 100], blobiness=2)
         # Ensure that im was generated as expeccted
         assert ps.metrics.porosity(self.im) == 0.499829
-        self.im_dt = edt(self.im)
+        self.im_dt = np.sqrt(pyedt.edt(self.im))
 
     def test_im_in_not_im_out(self):
         im = self.im[:, :, 50]
@@ -375,7 +375,7 @@ class FilterTest():
 
     def test_find_dt_artifacts(self):
         im = ps.generators.lattice_spheres(shape=[50, 50], r=4, offset=5)
-        dt = spim.distance_transform_edt(im)
+        dt = np.sqrt(pyedt.edt(im))
         ar = ps.filters.find_dt_artifacts(dt)
         inds = np.where(ar == ar.max())
         assert np.all(dt[inds] - ar[inds] == 1)
@@ -493,7 +493,7 @@ class FilterTest():
 
     def test_hold_peaks_algorithm(self):
         im = self.im[:, :, 5]
-        dt = spim.distance_transform_edt(input=im)
+        dt = np.sqrt(pyedt.edt(input=im))
         dt_hold_peaks = ps.filters.hold_peaks(dt, axis=0)
         diff = abs(np.max(dt_hold_peaks, axis=0) - np.max(dt, axis=0))
         assert np.all(diff <= 1e-15)
@@ -511,7 +511,7 @@ class FilterTest():
         im = ps.generators.blobs(shape=[400, 400],
                                  blobiness=[2, 1],
                                  porosity=0.6)
-        im_dt = edt(im)
+        im_dt = np.sqrt(pyedt.edt(im))
         dt = spim.gaussian_filter(input=im_dt, sigma=0.4)
         peaks = ps.filters.find_peaks(dt=dt, r_max=4)
         labels, N = spim.label(peaks, structure=ps.tools.ps_rect(3, 2))
@@ -528,7 +528,7 @@ class FilterTest():
         im = ps.generators.blobs(shape=[400, 400],
                                  blobiness=[2, 1],
                                  porosity=0.6)
-        im_dt = edt(im)
+        im_dt = np.sqrt(pyedt.edt(im))
         dt = spim.gaussian_filter(input=im_dt, sigma=0.4)
         peaks = ps.filters.find_peaks(dt=dt)
         peaks_far = ps.filters.trim_nearby_peaks(peaks=peaks, dt=dt)

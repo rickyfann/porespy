@@ -198,8 +198,7 @@ def radial_density_distribution(dt, bins=10, log=False, voxel_size=1):
     Parameters
     ----------
     dt : ndarray
-        A distance transform of the pore space (the ``edt`` package is
-        recommended).  Note that it is recommended to apply
+        A distance transform of the pore space.  Note that it is recommended to apply
         ``find_dt_artifacts`` to this image first, and set potentially
         erroneous values to 0 with ``dt[mask] = 0`` where
         ``mask = porespy.filters.find_dt_artifaces(dt)``.
