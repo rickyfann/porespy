@@ -350,8 +350,8 @@ def find_outer_region(im, r=None):
 
     """
     if r is None:
-        dt = np.sqrt(pyedt.edt(im))
-        r = int(np.amax(dt)) * 2
+        dt = pyedt.edt(im)
+        r = int(np.sqrt(np.amax(dt))) * 2
     im_padded = np.pad(array=im, pad_width=r, mode='constant',
                        constant_values=True)
     dt = np.sqrt(pyedt.edt(im_padded))
@@ -1005,9 +1005,9 @@ def ps_round(r, ndim, smooth=True):
     other = np.ones([2*rad + 1 for i in range(ndim)], dtype=bool)
     other[tuple(rad for i in range(ndim))] = False
     if smooth:
-        ball = pyedt.edt(other) < r**2
+        ball = pyedt.edt(other, force_method="cpu") < r**2
     else:
-        ball = pyedt.edt(other) <= r**2
+        ball = pyedt.edt(other, force_method="cpu") <= r**2
     return ball
 
 
@@ -1136,7 +1136,7 @@ def insert_sphere(im, c, r, v=True, overwrite=True):
     # Generate sphere template within image boundaries
     blank = np.ones_like(im[s], dtype=float)
     blank[tuple(c - bbox[0:im.ndim])] = 0.0
-    sph = pyedt.edt(blank) < r**2
+    sph = pyedt.edt(blank, force_method="cpu") < r**2
     if overwrite:  # Clear voxles under sphere to be zero
         temp = im[s] * sph > 0
         im[s][temp] = 0
@@ -1207,7 +1207,7 @@ def insert_cylinder(im, xyz0, xyz1, r):
     else:
         xyz_line_in_template_coords = [xyz_line[i] - xyz_min[i] for i in range(3)]
         template[tuple(xyz_line_in_template_coords)] = 1
-        template = pyedt.edt(template == 0) <= r**2
+        template = pyedt.edt(template == 0, force_method="cpu") <= r**2
 
     im[xyz_min[0]: xyz_max[0] + 1,
        xyz_min[1]: xyz_max[1] + 1,
