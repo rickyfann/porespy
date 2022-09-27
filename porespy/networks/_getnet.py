@@ -195,6 +195,9 @@ def regions_to_network(regions, phases=None, voxel_size=1, accuracy='standard'):
         p_coords = np.vstack((p_coords_cm.T, np.zeros((Np, )))).T
         t_coords = np.vstack((np.array(t_coords).T, np.zeros((Nt, )))).T
 
+    if len (t_conns) == 0:
+        return None
+
     net = {}
     ND = im.ndim
     # Define all the fundamental stuff
