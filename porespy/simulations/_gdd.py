@@ -7,6 +7,7 @@ import dask.delayed
 import dask
 import edt
 
+__all__ = ['tortuosity_gdd', 'chunks_to_dataframe']
 settings.loglevel=50
 
 @dask.delayed
@@ -291,3 +292,13 @@ def chunks_to_dataframe(im, scale_factor=3,):
                         columns = ['Throat Number', 'Tortuosity', 'Diffusive Conductance', 'Porosity'])
 
     return df
+
+if __name__ =="__main__":
+    import porespy as ps
+    im = ps.generators.fractal_noise(shape=[100,100,100], seed=1)<0.65
+    res = ps.simulations.tortuosity_gdd(im=im, scale_factor=3)
+    print(res)
+
+    im = ps.generators.fractal_noise(shape=[100,100,100], seed=2)<0.65
+    df = ps.simulations.chunks_to_dataframe(im=im, scale_factor=3)
+    print(df)
