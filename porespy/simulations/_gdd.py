@@ -135,8 +135,7 @@ def tortuosity_gdd(im, scale_factor=3,):
     # otherwise, the minimum of 3 in all directions is used
     else:
         chunk_shape=np.array([3,3,3])
-        print(f"{np.array(im.shape//(dt.max()*scale_factor), 
-                          dtype=int)} <= [3,3,3], using {im.shape[0]//3} as chunk size.")
+        print(f"{np.array(im.shape//(dt.max()*scale_factor), dtype=int)} <= [3,3,3], using {im.shape[0]//3} as chunk size.")
 
     t1 = time.perf_counter() - t0
 
@@ -262,8 +261,7 @@ def chunks_to_dataframe(im, scale_factor=3,):
     # otherwise, the minimum of 3 in all directions is used
     else:
         chunk_shape=np.array([3,3,3])
-        print(f"{np.array(im.shape//(dt.max()*scale_factor), 
-                          dtype=int)} <= [3,3,3], using {im.shape[0]//3} as chunk size.")
+        print(f"{np.array(im.shape//(dt.max()*scale_factor), dtype=int)} <= [3,3,3], using {im.shape[0]//3} as chunk size.")
 
     t1 = time.perf_counter() - t0
 
