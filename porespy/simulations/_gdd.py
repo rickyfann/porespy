@@ -135,7 +135,8 @@ def tortuosity_gdd(im, scale_factor=3,):
     # otherwise, the minimum of 3 in all directions is used
     else:
         chunk_shape=np.array([3,3,3])
-        print(f"{np.array(im.shape//(dt.max()*scale_factor), dtype=int)} <= [3,3,3], using {im.shape[0]//3} as chunk size.")
+        print(f"{np.array(im.shape//(dt.max()*scale_factor), 
+                          dtype=int)} <= [3,3,3], using {im.shape[0]//3} as chunk size.")
 
     t1 = time.perf_counter() - t0
 
@@ -150,16 +151,30 @@ def tortuosity_gdd(im, scale_factor=3,):
     t2 = time.perf_counter()- t0
 
     # creates the chunks for each masked image
-    x_slices = chunking(spacing = chunk_size, divs = [chunk_shape[0]-1, chunk_shape[1], chunk_shape[2]])
-    y_slices = chunking(spacing = chunk_size, divs = [chunk_shape[0], chunk_shape[1]-1, chunk_shape[2]])
-    z_slices = chunking(spacing = chunk_size, divs = [chunk_shape[0], chunk_shape[1], chunk_shape[2]-1])
+    x_slices = chunking(spacing = chunk_size, 
+                        divs = [chunk_shape[0]-1, chunk_shape[1], chunk_shape[2]])
+    y_slices = chunking(spacing = chunk_size, 
+                        divs = [chunk_shape[0], chunk_shape[1]-1, chunk_shape[2]])
+    z_slices = chunking(spacing = chunk_size, 
+                        divs = [chunk_shape[0], chunk_shape[1], chunk_shape[2]-1])
 
     t3 = time.perf_counter()- t0
     # queues up dask delayed function to be run in parallel
 
-    x_gD = [calc_g(x_image[x_slice[0][0]:x_slice[0][1], x_slice[1][0]:x_slice[1][1], x_slice[2][0]:x_slice[2][1],], axis = 0, result = 1) for x_slice in x_slices]
-    y_gD = [calc_g(y_image[y_slice[0][0]:y_slice[0][1], y_slice[1][0]:y_slice[1][1], y_slice[2][0]:y_slice[2][1],], axis = 0, result = 1) for y_slice in y_slices]
-    z_gD = [calc_g(z_image[z_slice[0][0]:z_slice[0][1], z_slice[1][0]:z_slice[1][1], z_slice[2][0]:z_slice[2][1],], axis = 0, result = 1) for z_slice in z_slices]
+    x_gD = [calc_g(x_image[x_slice[0][0]:x_slice[0][1],
+                           x_slice[1][0]:x_slice[1][1],
+                           x_slice[2][0]:x_slice[2][1],],
+                           axis = 0, result = 1) for x_slice in x_slices]
+    
+    y_gD = [calc_g(y_image[y_slice[0][0]:y_slice[0][1],
+                           y_slice[1][0]:y_slice[1][1],
+                           y_slice[2][0]:y_slice[2][1],],
+                           axis = 0, result = 1) for y_slice in y_slices]
+    
+    z_gD = [calc_g(z_image[z_slice[0][0]:z_slice[0][1],
+                           z_slice[1][0]:z_slice[1][1],
+                           z_slice[2][0]:z_slice[2][1],],
+                           axis = 0, result = 1) for z_slice in z_slices]
 
     # order of throat creation
     all_values = [z_gD, y_gD, x_gD]
@@ -168,7 +183,8 @@ def tortuosity_gdd(im, scale_factor=3,):
     
     all_gD = [result for result in all_results[::2]]
     all_tau_unfiltered = [result for result in all_results[1::2]]
-    all_tau = [result.tortuosity if type(result)!=int else result for result in all_tau_unfiltered]
+    all_tau = [result.tortuosity if type(result)!=int 
+               else result for result in all_tau_unfiltered]
     t4 = time.perf_counter()- t0
 
     # creates opnepnm network to calculate image tortuosity - order of arrays are incorrect
@@ -246,7 +262,8 @@ def chunks_to_dataframe(im, scale_factor=3,):
     # otherwise, the minimum of 3 in all directions is used
     else:
         chunk_shape=np.array([3,3,3])
-        print(f"{np.array(im.shape//(dt.max()*scale_factor), dtype=int)} <= [3,3,3], using {im.shape[0]//3} as chunk size.")
+        print(f"{np.array(im.shape//(dt.max()*scale_factor), 
+                          dtype=int)} <= [3,3,3], using {im.shape[0]//3} as chunk size.")
 
     t1 = time.perf_counter() - t0
 
@@ -261,17 +278,31 @@ def chunks_to_dataframe(im, scale_factor=3,):
     t2 = time.perf_counter()- t0
 
     # creates the chunks for each masked image
-    x_slices = chunking(spacing = chunk_size, divs = [chunk_shape[0]-1, chunk_shape[1], chunk_shape[2]])
-    y_slices = chunking(spacing = chunk_size, divs = [chunk_shape[0], chunk_shape[1]-1, chunk_shape[2]])
-    z_slices = chunking(spacing = chunk_size, divs = [chunk_shape[0], chunk_shape[1], chunk_shape[2]-1])
+    x_slices = chunking(spacing = chunk_size, 
+                        divs = [chunk_shape[0]-1, chunk_shape[1], chunk_shape[2]])
+    y_slices = chunking(spacing = chunk_size, 
+                        divs = [chunk_shape[0], chunk_shape[1]-1, chunk_shape[2]])
+    z_slices = chunking(spacing = chunk_size, 
+                        divs = [chunk_shape[0], chunk_shape[1], chunk_shape[2]-1])
 
     t3 = time.perf_counter()- t0
     # queues up dask delayed function to be run in parallel
 
-    x_gD = [calc_g(x_image[x_slice[0][0]:x_slice[0][1], x_slice[1][0]:x_slice[1][1], x_slice[2][0]:x_slice[2][1],], axis = 0, result = 1) for x_slice in x_slices]
-    y_gD = [calc_g(y_image[y_slice[0][0]:y_slice[0][1], y_slice[1][0]:y_slice[1][1], y_slice[2][0]:y_slice[2][1],], axis = 0, result = 1) for y_slice in y_slices]
-    z_gD = [calc_g(z_image[z_slice[0][0]:z_slice[0][1], z_slice[1][0]:z_slice[1][1], z_slice[2][0]:z_slice[2][1],], axis = 0, result = 1) for z_slice in z_slices]
-
+    x_gD = [calc_g(x_image[x_slice[0][0]:x_slice[0][1],
+                           x_slice[1][0]:x_slice[1][1],
+                           x_slice[2][0]:x_slice[2][1],],
+                           axis = 0, result = 1) for x_slice in x_slices]
+    
+    y_gD = [calc_g(y_image[y_slice[0][0]:y_slice[0][1],
+                           y_slice[1][0]:y_slice[1][1],
+                           y_slice[2][0]:y_slice[2][1],],
+                           axis = 0, result = 1) for y_slice in y_slices]
+    
+    z_gD = [calc_g(z_image[z_slice[0][0]:z_slice[0][1],
+                           z_slice[1][0]:z_slice[1][1],
+                           z_slice[2][0]:z_slice[2][1],],
+                           axis = 0, result = 1) for z_slice in z_slices]
+    
     # order of throat creation
     all_values = [z_gD, y_gD, x_gD]
 
@@ -279,8 +310,10 @@ def chunks_to_dataframe(im, scale_factor=3,):
     
     all_gD = [result for result in all_results[::2]]
     all_tau_unfiltered = [result for result in all_results[1::2]]
-    all_porosity = [result.effective_porosity if type(result)!=int else result for result in all_tau_unfiltered]
-    all_tau = [result.tortuosity if type(result)!=int else result for result in all_tau_unfiltered]
+    all_porosity = [result.effective_porosity if type(result)!=int 
+                    else result for result in all_tau_unfiltered]
+    all_tau = [result.tortuosity if type(result)!=int 
+               else result for result in all_tau_unfiltered]
     t4 = time.perf_counter()- t0
 
     # creates opnepnm network to calculate image tortuosity - order of arrays are incorrect
