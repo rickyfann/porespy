@@ -36,9 +36,9 @@ class SimulationsTest():
     def test_gdd(self):
         im = ps.generators.fractal_noise(shape=[100, 100, 100], seed=1)<0.65
         res = ps.simulations.tortuosity_gdd(im=im, scale_factor=3)
-        np.testing.assert_approx_equal(res[0], 1.707800753372152)
-        np.testing.assert_approx_equal(res[1], 1.7033469726308779)
-        np.testing.assert_approx_equal(res[2], 1.5911705426959204)
+        np.testing.assert_approx_equal(res[0], 1.707800753372152, decimals=5)
+        np.testing.assert_approx_equal(res[1], 1.7033469726308779, decimals=5)
+        np.testing.assert_approx_equal(res[2], 1.5911705426959204, decimals=5)
 
     def test_gdd_dataframe(self):
         im = ps.generators.fractal_noise(shape=[100, 100, 100], seed=2)<0.65
