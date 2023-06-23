@@ -10,10 +10,9 @@ import edt
 __all__ = ['tortuosity_gdd', 'chunks_to_dataframe']
 settings.loglevel=50
 
+
 @dask.delayed
-
-
-def calc_g (image, axis, result=0):
+def calc_g(image, axis, result=0):
     r'''Calculates diffusive conductance of an image.
 
     Parameters
@@ -26,26 +25,26 @@ def calc_g (image, axis, result=0):
         0 for diffusive conductance, 1 for tortuosity.
     '''
     try:
-        # if tortuosity_fd fails, then the throat is closed off from whichever axis was specified
+        # if tortuosity_fd fails, throat is closed off from whichever axis was specified
         results = simulations.tortuosity_fd(im=image, axis=axis)
 
-    except:
-        return (99,0)
-    
+    except Exception:
+        return (99, 0)
+
     A = np.prod(image.shape)/image.shape[axis]
     L = image.shape[axis]
 
     if result == 0:
 
-        return( (results.effective_porosity * A) / (results.tortuosity * L))
+        return ((results.effective_porosity * A) / (results.tortuosity * L))
 
     else:
-        return((results.effective_porosity * A) / (results.tortuosity * L), results)
-    
+        return ((results.effective_porosity * A) / (results.tortuosity * L), results)
 
-def network_calc (image, chunk_size, network, phase, bc, dimensions):
+
+def network_calc(image, chunk_size, network, phase, bc, dimensions):
     r'''Calculates the resistor network tortuosity.
-    
+
     Parameters
     ----------
     image : np.ndarray
@@ -63,8 +62,8 @@ def network_calc (image, chunk_size, network, phase, bc, dimensions):
     '''
     fd=op.algorithms.FickianDiffusion(network=network, phase=phase)
 
-    fd.set_value_BC(pores = network.pores(bc[0]), values = 1)
-    fd.set_value_BC(pores = network.pores(bc[1]), values = 0)
+    fd.set_value_BC(pores=network.pores(bc[0]), values=1)
+    fd.set_value_BC(pores=network.pores(bc[1]), values=0)
     fd.run()
 
     rate_inlet = fd.rate(pores=network.pores(bc[0]))[0]
