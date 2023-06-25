@@ -37,7 +37,7 @@ class SimulationsTest():
         np.random.seed(1)
         im = ps.generators.blobs(shape=[100, 100, 100], porosity=0.7)
         res = ps.simulations.tortuosity_gdd(im=im, scale_factor=3)
-    
+
         np.testing.assert_approx_equal(res[0], 1.3939444950116722, significant=5)
         np.testing.assert_approx_equal(res[1], 1.420361317605694, significant=5)
         np.testing.assert_approx_equal(res[2], 1.3962838936596436, significant=5)

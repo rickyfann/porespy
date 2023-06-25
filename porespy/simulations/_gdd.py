@@ -330,7 +330,7 @@ if __name__ =="__main__":
     im = ps.generators.blobs(shape=[100, 100, 100], porosity=0.7)
     res = ps.simulations.tortuosity_gdd(im=im, scale_factor=3)
     print(res)
-    
+
     np.random.seed(2)
     im = ps.generators.blobs(shape=[100, 100, 100], porosity=0.7)
     df = ps.simulations.chunks_to_dataframe(im=im, scale_factor=3)
