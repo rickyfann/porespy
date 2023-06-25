@@ -325,10 +325,13 @@ def chunks_to_dataframe(im, scale_factor=3,):
 
 if __name__ =="__main__":
     import porespy as ps
-    im = ps.generators.fractal_noise(shape=[100, 100, 100], seed=1)<0.65
+    import numpy as np
+    np.random.seed(1)
+    im = ps.generators.blobs(shape=[100, 100, 100], porosity=0.7)
     res = ps.simulations.tortuosity_gdd(im=im, scale_factor=3)
     print(res)
-
-    im = ps.generators.fractal_noise(shape=[100, 100, 100], seed=2)<0.65
+    
+    np.random.seed(2)
+    im = ps.generators.blobs(shape=[100, 100, 100], porosity=0.7)
     df = ps.simulations.chunks_to_dataframe(im=im, scale_factor=3)
     print(df)

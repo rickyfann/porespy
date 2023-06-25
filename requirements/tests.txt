@@ -13,4 +13,3 @@ trimesh
 pyevtk
 imageio
 numpy-stl
-pyfastnoisesimd
