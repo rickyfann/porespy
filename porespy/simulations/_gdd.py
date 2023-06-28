@@ -242,7 +242,6 @@ def chunks_to_dataframe(im, scale_factor=3,):
         Contains throat numbers, tau values, diffusive conductance values, and porosity
 
     '''
-    t0 = time.perf_counter()
     dt = edt.edt(im)
     print(f'Max distance transform found: {dt.max()}')
 
@@ -260,8 +259,6 @@ def chunks_to_dataframe(im, scale_factor=3,):
         print(f"{np.array(im.shape//(dt.max()*scale_factor), dtype=int)}\
                <= [3,3,3], using {im.shape[0]//3} as chunk size.")
 
-    t1 = time.perf_counter() - t0
-
     # determines chunk size
     chunk_size = np.floor(im.shape/np.array(chunk_shape))
 
@@ -269,8 +266,6 @@ def chunks_to_dataframe(im, scale_factor=3,):
     x_image = im[int(chunk_size[0]//2): int(im.shape[0] - chunk_size[0] //2), :, :]
     y_image = im[:, int(chunk_size[1]//2): int(im.shape[1] - chunk_size[1] //2), :]
     z_image = im[:, :, int(chunk_size[2]//2): int(im.shape[2] - chunk_size[2] //2)]
-
-    t2 = time.perf_counter()- t0
 
     # creates the chunks for each masked image
     x_slices = chunking(spacing=chunk_size,
@@ -280,9 +275,7 @@ def chunks_to_dataframe(im, scale_factor=3,):
     z_slices = chunking(spacing=chunk_size,
                         divs=[chunk_shape[0], chunk_shape[1], chunk_shape[2]-1])
 
-    t3 = time.perf_counter()- t0
     # queues up dask delayed function to be run in parallel
-
     x_gD = [calc_g(x_image[x_slice[0][0]:x_slice[0][1],
                            x_slice[1][0]:x_slice[1][1],
                            x_slice[2][0]:x_slice[2][1],],
@@ -309,12 +302,9 @@ def chunks_to_dataframe(im, scale_factor=3,):
                     else result for result in all_tau_unfiltered]
     all_tau = [result.tortuosity if type(result)!=int
                else result for result in all_tau_unfiltered]
-    t4 = time.perf_counter()- t0
 
     # creates opnepnm network to calculate image tortuosity
     net = op.network.Cubic(chunk_shape)
-
-    t5 = time.perf_counter()- t0
 
     df = DataFrame(list(zip(np.arange(net.Nt), all_tau, all_gD, all_porosity)),
                         columns=['Throat Number', 'Tortuosity',
