@@ -123,7 +123,7 @@ def tortuosity_gdd(im, scale_factor=3,):
     '''
     t0 = time.perf_counter()
     dt = edt.edt(im)
-    print(f'Max distance transform found: {dt.max()}')
+    print(f'Max distance transform found: {round(dt.max(), 3)}')
 
     # determining the number of chunks in each direction, minimum of 3 is required
     if np.all(im.shape//(scale_factor*dt.max())>np.array([3, 3, 3])):
@@ -136,8 +136,8 @@ def tortuosity_gdd(im, scale_factor=3,):
     # otherwise, the minimum of 3 in all directions is used
     else:
         chunk_shape=np.array([3, 3, 3])
-        print(f"{np.array(im.shape//(dt.max()*scale_factor), dtype=int)} <= [3,3,3],\
-               using {im.shape[0]//3} as chunk size.")
+        print(f"{np.array(im.shape//(dt.max()*scale_factor), dtype=int)} <= [3,3,3], \
+using {im.shape[0]//3} as chunk size.")
 
     t1 = time.perf_counter() - t0
 
@@ -243,7 +243,7 @@ def chunks_to_dataframe(im, scale_factor=3,):
 
     '''
     dt = edt.edt(im)
-    print(f'Max distance transform found: {dt.max()}')
+    print(f'Max distance transform found: {round(dt.max(), 3)}')
 
     # determining the number of chunks in each direction, minimum of 3 is required
     if np.all(im.shape//(scale_factor*dt.max())>np.array([3, 3, 3])):
@@ -256,8 +256,8 @@ def chunks_to_dataframe(im, scale_factor=3,):
     # otherwise, the minimum of 3 in all directions is used
     else:
         chunk_shape=np.array([3, 3, 3])
-        print(f"{np.array(im.shape//(dt.max()*scale_factor), dtype=int)}\
-               <= [3,3,3], using {im.shape[0]//3} as chunk size.")
+        print(f"{np.array(im.shape//(dt.max()*scale_factor), dtype=int)} <= [3,3,3], \
+using {im.shape[0]//3} as chunk size.")
 
     # determines chunk size
     chunk_size = np.floor(im.shape/np.array(chunk_shape))
