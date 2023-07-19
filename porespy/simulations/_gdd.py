@@ -162,19 +162,19 @@ using {im.shape[0]//3} as chunk size.")
     t3 = time.perf_counter()- t0
     # queues up dask delayed function to be run in parallel
 
-    x_gD = [calc_g(x_image[x_slice[0,0]:x_slice[0,1],
-                           x_slice[1,0]:x_slice[1,1],
-                           x_slice[2,0]:x_slice[2,1],],
+    x_gD = [calc_g(x_image[x_slice[0, 0]:x_slice[0, 1],
+                           x_slice[1, 0]:x_slice[1, 1],
+                           x_slice[2, 0]:x_slice[2, 1],],
                            axis=0, result=1) for x_slice in x_slices]
 
-    y_gD = [calc_g(y_image[y_slice[0,0]:y_slice[0,1],
-                           y_slice[1,0]:y_slice[1,1],
-                           y_slice[2,0]:y_slice[2,1],],
+    y_gD = [calc_g(y_image[y_slice[0, 0]:y_slice[0, 1],
+                           y_slice[1, 0]:y_slice[1, 1],
+                           y_slice[2, 0]:y_slice[2, 1],],
                            axis=0, result=1) for y_slice in y_slices]
 
-    z_gD = [calc_g(z_image[z_slice[0,0]:z_slice[0,1],
-                           z_slice[1,0]:z_slice[1,1],
-                           z_slice[2,0]:z_slice[2,1],],
+    z_gD = [calc_g(z_image[z_slice[0, 0]:z_slice[0, 1],
+                           z_slice[1, 0]:z_slice[1, 1],
+                           z_slice[2, 0]:z_slice[2, 1],],
                            axis=0, result=1) for z_slice in z_slices]
 
     # order of throat creation
@@ -276,19 +276,19 @@ using {im.shape[0]//3} as chunk size.")
                         divs=[chunk_shape[0], chunk_shape[1], chunk_shape[2]-1])
 
     # queues up dask delayed function to be run in parallel
-    x_gD = [calc_g(x_image[x_slice[0][0]:x_slice[0][1],
-                           x_slice[1][0]:x_slice[1][1],
-                           x_slice[2][0]:x_slice[2][1],],
+    x_gD = [calc_g(x_image[x_slice[0, 0]:x_slice[0, 1],
+                           x_slice[1, 0]:x_slice[1, 1],
+                           x_slice[2, 0]:x_slice[2, 1],],
                            axis=0, result=1) for x_slice in x_slices]
 
-    y_gD = [calc_g(y_image[y_slice[0][0]:y_slice[0][1],
-                           y_slice[1][0]:y_slice[1][1],
-                           y_slice[2][0]:y_slice[2][1],],
+    y_gD = [calc_g(y_image[y_slice[0, 0]:y_slice[0, 1],
+                           y_slice[1, 0]:y_slice[1, 1],
+                           y_slice[2, 0]:y_slice[2, 1],],
                            axis=0, result=1) for y_slice in y_slices]
 
-    z_gD = [calc_g(z_image[z_slice[0][0]:z_slice[0][1],
-                           z_slice[1][0]:z_slice[1][1],
-                           z_slice[2][0]:z_slice[2][1],],
+    z_gD = [calc_g(z_image[z_slice[0, 0]:z_slice[0, 1],
+                           z_slice[1, 0]:z_slice[1, 1],
+                           z_slice[2, 0]:z_slice[2, 1],],
                            axis=0, result=1) for z_slice in z_slices]
 
     # order of throat creation
