@@ -54,12 +54,14 @@ def network_calc(image, chunk_size, network, phase, bc, dimensions):
     bc : tuple
         Contains the first and second boundary conditions.
     dimensions : tuple
-        Contains the order of axes to calculate on.
+        Contains the order of axes to calculate on. The first is the primary axis,
+        the second and third are orthogonal to the first.
 
     Returns
     -------
     tau : Tortuosity of the network in the given dimension
     '''
+
     fd=op.algorithms.FickianDiffusion(network=network, phase=phase)
 
     fd.set_value_BC(pores=network.pores(bc[0]), values=1)
@@ -68,7 +70,7 @@ def network_calc(image, chunk_size, network, phase, bc, dimensions):
 
     rate_inlet = fd.rate(pores=network.pores(bc[0]))[0]
     L = image.shape[dimensions[0]] - chunk_size[dimensions[0]]
-    A = image.shape[dimensions[1]] * image.shape[dimensions[2]]
+    A = image.shape[dimensions[1]] * image.shape[dimensions[2]] if len(image.shape)>2 else image.shape[dimensions[1]]
     d_eff = rate_inlet * L / (A * (1 - 0))
 
     e = image.sum() / image.size
@@ -122,21 +124,24 @@ def tortuosity_gdd(im, scale_factor=3,):
         Contains tau values for three directions, time stamps, tau values for each chunk
     '''
     t0 = time.perf_counter()
+
+    IS_3D = len(im.shape)>2
+
     dt = edt.edt(im)
     print(f'Max distance transform found: {round(dt.max(), 3)}')
 
     # determining the number of chunks in each direction, minimum of 3 is required
-    if np.all(im.shape//(scale_factor*dt.max())>np.array([3, 3, 3])):
+    if np.all(im.shape//(scale_factor*dt.max())>np.ones(shape=len(im.shape))*3):
 
         # if the minimum is exceeded, then chunk number is validated
         # integer division is required for defining chunk shapes
         chunk_shape=np.array(im.shape//(dt.max()*scale_factor), dtype=int)
-        print(f"{chunk_shape} > [3,3,3], using {(im.shape//chunk_shape)} as chunk size.")
+        print(f"{chunk_shape} > {np.ones(shape=len(im.shape))*3}, using {(im.shape//chunk_shape)} as chunk size.")
 
     # otherwise, the minimum of 3 in all directions is used
     else:
-        chunk_shape=np.array([3, 3, 3])
-        print(f"{np.array(im.shape//(dt.max()*scale_factor), dtype=int)} <= [3,3,3], \
+        chunk_shape=np.ones(shape=len(im.shape), dtype=int)*3
+        print(f"{np.array(im.shape//(dt.max()*scale_factor), dtype=int)} <= {chunk_shape}, \
 using {im.shape[0]//3} as chunk size.")
 
     t1 = time.perf_counter() - t0
@@ -145,19 +150,28 @@ using {im.shape[0]//3} as chunk size.")
     chunk_size = np.floor(im.shape/np.array(chunk_shape))
 
     # creates the masked images - removes half of a chunk from both ends of one axis
-    x_image = im[int(chunk_size[0]//2): int(im.shape[0] - chunk_size[0] //2), :, :]
-    y_image = im[:, int(chunk_size[1]//2): int(im.shape[1] - chunk_size[1] //2), :]
-    z_image = im[:, :, int(chunk_size[2]//2): int(im.shape[2] - chunk_size[2] //2)]
+    x_image = np.atleast_3d(im)[int(chunk_size[0]//2): int(im.shape[0] - chunk_size[0] //2), :,]
+    y_image = np.atleast_3d(im)[:, int(chunk_size[1]//2): int(im.shape[1] - chunk_size[1] //2),]
+
+    if IS_3D:
+        z_image = np.atleast_3d(im)[:, :, int(chunk_size[2]//2): int(im.shape[2] - chunk_size[2] //2)]
 
     t2 = time.perf_counter()- t0
 
     # creates the chunks for each masked image
-    x_slices = chunking(spacing=chunk_size,
-                        divs=[chunk_shape[0]-1, chunk_shape[1], chunk_shape[2]])
-    y_slices = chunking(spacing=chunk_size,
-                        divs=[chunk_shape[0], chunk_shape[1]-1, chunk_shape[2]])
-    z_slices = chunking(spacing=chunk_size,
-                        divs=[chunk_shape[0], chunk_shape[1], chunk_shape[2]-1])
+    if IS_3D:
+        x_slices = chunking(spacing=chunk_size,
+                            divs=[chunk_shape[0]-1, chunk_shape[1], chunk_shape[2]])
+        y_slices = chunking(spacing=chunk_size,
+                            divs=[chunk_shape[0], chunk_shape[1]-1, chunk_shape[2]])
+        z_slices = chunking(spacing=chunk_size,
+                            divs=[chunk_shape[0], chunk_shape[1], chunk_shape[2]-1])
+    
+    else:
+        x_slices = chunking(spacing=[chunk_size[0], chunk_size[1], 1],
+                    divs=[chunk_shape[0]-1, chunk_shape[1], 1])
+        y_slices = chunking(spacing=[chunk_size[0], chunk_size[1], 1],
+                    divs=[chunk_shape[0], chunk_shape[1]-1, 1])
 
     t3 = time.perf_counter()- t0
     # queues up dask delayed function to be run in parallel
@@ -170,15 +184,19 @@ using {im.shape[0]//3} as chunk size.")
     y_gD = [calc_g(y_image[y_slice[0, 0]:y_slice[0, 1],
                            y_slice[1, 0]:y_slice[1, 1],
                            y_slice[2, 0]:y_slice[2, 1],],
-                           axis=0, result=1) for y_slice in y_slices]
-
-    z_gD = [calc_g(z_image[z_slice[0, 0]:z_slice[0, 1],
-                           z_slice[1, 0]:z_slice[1, 1],
-                           z_slice[2, 0]:z_slice[2, 1],],
-                           axis=0, result=1) for z_slice in z_slices]
+                           axis=1, result=1) for y_slice in y_slices]
 
     # order of throat creation
-    all_values = [z_gD, y_gD, x_gD]
+    all_values = [y_gD, x_gD]
+
+    if IS_3D:
+        z_gD = [
+            calc_g(z_image[z_slice[0, 0]:z_slice[0, 1],
+                           z_slice[1, 0]:z_slice[1, 1],
+                           z_slice[2, 0]:z_slice[2, 1],],
+                           axis=2, result=1) for z_slice in z_slices]
+    
+        all_values.insert(0, z_gD)
 
     all_results = np.array(dask.compute(all_values), dtype=object).flatten()
 
@@ -191,6 +209,7 @@ using {im.shape[0]//3} as chunk size.")
     # creates opnepnm network to calculate image tortuosity
     net = op.network.Cubic(chunk_shape)
     air = op.phase.Phase(network=net)
+    netas=op.network.BodyCenteredCubic
 
     air['throat.diffusive_conductance']=np.array(all_gD).flatten()
 
@@ -204,21 +223,23 @@ using {im.shape[0]//3} as chunk size.")
                  bc=['left', 'right'],
                  dimensions=[1, 0, 2]),
 
-    # y direction
-    network_calc(image=im,
-                 chunk_size=chunk_size,
-                 network=net,
-                 phase=air,
-                 bc=['front', 'back'],
-                 dimensions=[2, 1, 0]),
-
-    # z direction
+    # z direction or y direction if 2D
     network_calc(image=im,
                  chunk_size=chunk_size,
                  network=net,
                  phase=air,
                  bc=['top', 'bottom'],
                  dimensions=[0, 1, 2])]
+
+    if IS_3D:
+        throat_tau.insert(1,
+        # y direction
+        network_calc(image=im,
+                    chunk_size=chunk_size,
+                    network=net,
+                    phase=air,
+                    bc=['front', 'back'],
+                    dimensions=[2, 1, 0]))
 
     t5 = time.perf_counter()- t0
 
@@ -246,17 +267,17 @@ def chunks_to_dataframe(im, scale_factor=3,):
     print(f'Max distance transform found: {round(dt.max(), 3)}')
 
     # determining the number of chunks in each direction, minimum of 3 is required
-    if np.all(im.shape//(scale_factor*dt.max())>np.array([3, 3, 3])):
+    if np.all(im.shape//(scale_factor*dt.max())>np.ones(shape=len(im.shape))*3):
 
         # if the minimum is exceeded, then chunk number is validated
         # integer division is required for defining chunk shapes
         chunk_shape=np.array(im.shape//(dt.max()*scale_factor), dtype=int)
-        print(f"{chunk_shape} > [3,3,3], using {(im.shape//chunk_shape)} as chunk size.")
+        print(f"{chunk_shape} > {np.ones(shape=len(im.shape))*3}, using {(im.shape//chunk_shape)} as chunk size.")
 
     # otherwise, the minimum of 3 in all directions is used
     else:
-        chunk_shape=np.array([3, 3, 3])
-        print(f"{np.array(im.shape//(dt.max()*scale_factor), dtype=int)} <= [3,3,3], \
+        chunk_shape=np.ones(shape=len(im.shape), dtype=int)*3
+        print(f"{np.array(im.shape//(dt.max()*scale_factor), dtype=int)} <= {chunk_shape}, \
 using {im.shape[0]//3} as chunk size.")
 
     # determines chunk size
@@ -284,12 +305,12 @@ using {im.shape[0]//3} as chunk size.")
     y_gD = [calc_g(y_image[y_slice[0, 0]:y_slice[0, 1],
                            y_slice[1, 0]:y_slice[1, 1],
                            y_slice[2, 0]:y_slice[2, 1],],
-                           axis=0, result=1) for y_slice in y_slices]
+                           axis=1, result=1) for y_slice in y_slices]
 
     z_gD = [calc_g(z_image[z_slice[0, 0]:z_slice[0, 1],
                            z_slice[1, 0]:z_slice[1, 1],
                            z_slice[2, 0]:z_slice[2, 1],],
-                           axis=0, result=1) for z_slice in z_slices]
+                           axis=2, result=1) for z_slice in z_slices]
 
     # order of throat creation
     all_values = [z_gD, y_gD, x_gD]
