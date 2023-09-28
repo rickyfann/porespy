@@ -15,6 +15,7 @@ def snow2(phases,
           sigma=0.4,
           r_max=4,
           peaks=None,
+          porosity_map=None,
           parallelization={},):
     r"""
     Applies the SNOW algorithm to each phase indicated in ``phases``.
@@ -177,9 +178,16 @@ def snow2(phases,
     if np.any(boundary_width):
         regions = add_boundary_regions(regions, pad_width=boundary_width)
         phases = np.pad(phases, pad_width=boundary_width, mode='edge')
+        if porosity_map is not None:
+            porosity_map = np.pad(porosity_map, pad_width=boundary_width, mode='edge')
     # Perform actual extractcion on all regions
     net = regions_to_network(
-        regions, phases=phases, accuracy=accuracy, voxel_size=voxel_size)
+        regions, 
+        phases=phases, 
+        accuracy=accuracy, 
+        voxel_size=voxel_size, 
+        porosity_map=porosity_map,
+    )
     # If image is multiphase, label pores/throats accordingly
     if phases.max() > 1:
         phase_alias = _parse_phase_alias(phase_alias, phases)

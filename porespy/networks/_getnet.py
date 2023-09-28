@@ -11,7 +11,7 @@ from loguru import logger
 tqdm = get_tqdm()
 
 
-def regions_to_network(regions, phases=None, voxel_size=1, accuracy='standard'):
+def regions_to_network(regions, phases=None, voxel_size=1, accuracy='standard', porosity_map=None):
     r"""
     Analyzes an image that has been partitioned into pore regions and extracts
     the pore and throat geometry as well as network connectivity.
@@ -137,6 +137,7 @@ def regions_to_network(regions, phases=None, voxel_size=1, accuracy='standard'):
     p_label = np.zeros((Np, ), dtype=int)
     p_area_surf = np.zeros((Np, ), dtype=int)
     p_phase = np.zeros((Np, ), dtype=int)
+    p_porosity = np.ones((Np, ), dtype=float)
     # The number of throats is not known at the start, so lists are used
     # which can be dynamically resized more easily.
     t_conns = []
@@ -164,6 +165,8 @@ def regions_to_network(regions, phases=None, voxel_size=1, accuracy='standard'):
         temp = np.vstack(np.where(pore_dt == pore_dt.max()))[:, 0]
         p_coords_dt[pore, :] = temp + s_offset
         p_phase[pore] = (phases[s]*pore_im).max()
+        if porosity_map is not None:
+            p_porosity[pore] = ((porosity_map[s]*pore_im).sum() / pore_im.sum()) / 100
         temp = np.vstack(np.where(sub_dt == sub_dt.max()))[:, 0]
         p_coords_dt_global[pore, :] = temp + s_offset
         p_volume[pore] = np.sum(pore_im)
@@ -207,6 +210,7 @@ def regions_to_network(regions, phases=None, voxel_size=1, accuracy='standard'):
     net['throat.all'] = np.ones_like(net['throat.conns'][:, 0], dtype=bool)
     net['pore.region_label'] = np.array(p_label)
     net['pore.phase'] = np.array(p_phase, dtype=int)
+    net['pore.porosity'] = p_porosity
     net['throat.phases'] = net['pore.phase'][net['throat.conns']]
     V = np.copy(p_volume)*(voxel_size**ND)
     net['pore.region_volume'] = V  # This will be an area if image is 2D
