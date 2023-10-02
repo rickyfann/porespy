@@ -299,6 +299,7 @@ def analyze_blocks(im, block_size, dask_args={}, solver_args={}):
         df_temp['volume'] = [r.volume for r in results]
         df_temp['length'] = [block_size for r in results]
         df_temp['axis'] = [ax for _ in results]
+        df_temp['time'] = [r.time for r in results]
         df = pd.concat((df, df_temp))
 
     if dask_args['enable'] and dask_args['close']:
@@ -387,9 +388,10 @@ def tortuosity_bt(im, block_size=None):
 if __name__ =="__main__":
     import porespy as ps
     # im = ps.generators.cylinders(shape=[300, 200, 100], porosity=0.5, r=3, seed=1)
-    im = ps.generators.blobs(shape=[100, 100, 100], porosity=0.99, blobiness=1, seed=1)
+    im = ps.generators.blobs(shape=[256, 256, 256], porosity=0.99, blobiness=1, seed=1)
     ps.tools.tic()
-    df = rev_tortuosity(im, [25], dask_args={'enable': True})
+    s = np.arange(16, 129, 16)
+    df = rev_tortuosity(im, block_sizes=s, dask_args={'enable': False})
     t = ps.tools.toc()
     print(df)
     # block_size = estimate_block_size(im, scale_factor=3, mode='linear')
