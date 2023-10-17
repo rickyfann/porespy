@@ -17,6 +17,7 @@ __all__ = [
     'tortuosity_bt',
     'rev_tortuosity',
     'analyze_blocks',
+    'df_to_tau',
 ]
 
 
@@ -308,7 +309,7 @@ def analyze_blocks(im, block_size, dask_args={}, solver_args={}):
     return df
 
 
-def network_to_tau(df, im, block_size):
+def df_to_tau(df, im):
     r"""
     Compute the tortuosity of a network populated with diffusive conductance values
     from the given dataframe.
@@ -327,8 +328,9 @@ def network_to_tau(df, im, block_size):
     tau : list of floats
         The tortuosity in all three principal directions
     """
-    if not np.isscalar(block_size):
-        raise Exception('Only cubic blocks supported. block_size must be a scalar')
+    if not np.all(df['length'] == df['length'][0]):
+        raise Exception('Block sizes are not all the same in the given dataframe')
+    block_size = df['length'][0]
     divs = block_size_to_divs(shape=im.shape, block_size=block_size)
     net = op.network.Cubic(shape=divs)
     phase = op.phase.Phase(network=net)
@@ -336,13 +338,13 @@ def network_to_tau(df, im, block_size):
     gy = np.array(df['g'])[df['axis'] == 1]
     gz = np.array(df['g'])[df['axis'] == 2]
     g = np.hstack((gz, gy, gx))  # throat indices in openpnm are in reverse order!
-    g[g == 0] = 1e-20
+    g = np.clip(g, 1e-20, np.inf)
     phase['throat.diffusive_conductance'] = g
     bcs = {0: {'in': 'left', 'out': 'right'},
            1: {'in': 'front', 'out': 'back'},
            2: {'in': 'top', 'out': 'bottom'}}
-    im_temp = fill_blind_pores(im, surface=True)
-    e = np.sum(im_temp, dtype=np.int64) / im_temp.size
+    # im_temp = fill_blind_pores(im, surface=True)
+    e = np.sum(im, dtype=np.int64) / im.size
     D_AB = 1
     tau = []
     for ax in range(im.ndim):
@@ -351,8 +353,8 @@ def network_to_tau(df, im, block_size):
         fick.set_value_BC(pores=net.pores(bcs[ax]['out']), values=0.0)
         fick.run()
         rate_inlet = fick.rate(pores=net.pores(bcs[ax]['in']))[0]
-        L = im.shape[ax] - block_size
-        A = np.prod(im.shape) / im.shape[ax]
+        L = (divs[ax] - 1) * block_size
+        A = (np.prod(divs) / divs[ax]) * (block_size**2)
         D_eff = rate_inlet * L / (A * (1 - 0))
         tau.append(e * D_AB / D_eff)
     ws = op.Workspace()
@@ -381,19 +383,34 @@ def tortuosity_bt(im, block_size=None):
     if block_size is None:
         block_size = estimate_block_size(im, scale_factor=3, mode='radial')
     df = analyze_blocks(im, block_size, dask_args={'close': True})
-    tau = network_to_tau(df=df, im=im, block_size=block_size)
+    tau = df_to_tau(df=df, im=im)
     return tau
 
 
 if __name__ =="__main__":
     import porespy as ps
-    # im = ps.generators.cylinders(shape=[300, 200, 100], porosity=0.5, r=3, seed=1)
-    im = ps.generators.blobs(shape=[256, 256, 256], porosity=0.99, blobiness=1, seed=1)
-    ps.tools.tic()
-    s = np.arange(16, 129, 16)
-    df = rev_tortuosity(im, block_sizes=s, dask_args={'enable': False})
-    t = ps.tools.toc()
-    print(df)
-    # block_size = estimate_block_size(im, scale_factor=3, mode='linear')
-    # tau = tortuosity_bt(im=im, block_size=block_size)
-    # print(tau)
+    import matplotlib.pyplot as plt
+    from porespy import beta
+    from copy import copy
+
+    cm = copy(plt.cm.turbo)
+    cm.set_under('grey')
+    ps.visualization.set_mpl_style()
+
+    sample = r"C:\Users\jeff\Dropbox\Shared\Common\Manuscripts in Progress\Paper 94 - Tau in Chunks\Notebooks\fractal_noise_512cubed_eps75_seed0"
+    im = np.load(sample + ".npz")['arr_0']
+    df = pd.read_csv(sample + '.csv')
+
+    sizes = np.unique(df['length'])
+    taus = []
+    block_size = []
+    for L in sizes:
+        df2 = df.loc[df['length'] == L]
+        df2 = df2.reset_index()
+        tau = beta.df_to_tau(df2, im=im)
+        print(tau)
+        taus.append(tau)
+        block_size.append(L)
+    fig, ax = plt.subplots()
+    ax.plot(block_size, np.mean(taus, axis=1), 'bo')
+    ax.set_ylim([1, 2])
