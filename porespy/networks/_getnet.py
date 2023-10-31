@@ -167,6 +167,8 @@ def regions_to_network(regions, phases=None, voxel_size=1, accuracy='standard', 
         p_phase[pore] = (phases[s]*pore_im).max()
         if porosity_map is not None:
             p_porosity[pore] = ((porosity_map[s]*pore_im).sum() / pore_im.sum()) / 100
+        else:
+            p_porosity[pore] = 1
         temp = np.vstack(np.where(sub_dt == sub_dt.max()))[:, 0]
         p_coords_dt_global[pore, :] = temp + s_offset
         p_volume[pore] = np.sum(pore_im)
