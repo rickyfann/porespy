@@ -212,7 +212,7 @@ def regions_to_network(regions, phases=None, voxel_size=1, accuracy='standard', 
     net['throat.all'] = np.ones_like(net['throat.conns'][:, 0], dtype=bool)
     net['pore.region_label'] = np.array(p_label)
     net['pore.phase'] = np.array(p_phase, dtype=int)
-    net['pore.porosity'] = p_porosity
+    net['pore.subresolution_porosity'] = p_porosity
     net['throat.phases'] = net['pore.phase'][net['throat.conns']]
     V = np.copy(p_volume)*(voxel_size**ND)
     net['pore.region_volume'] = V  # This will be an area if image is 2D
