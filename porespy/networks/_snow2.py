@@ -11,7 +11,7 @@ def snow2(phases,
           phase_alias=None,
           boundary_width=3,
           accuracy='standard',
-          voxel_size=1,
+          voxel_size=(1, 1, 1),
           sigma=0.4,
           r_max=4,
           peaks=None,
@@ -73,9 +73,9 @@ def snow2(phases,
                 are substantially slower but better account for the
                 voxelated nature of the images.
 
-    voxel_size : scalar (default = 1)
-        The resolution of the image, expressed as the length of one side
-        of a voxel, so the volume of a voxel would be **voxel_size**-cubed.
+    voxel_size : tuple (default = (1, 1, 1))
+        The resolution of the image, expressed as the length of the sides of a
+        voxel, so the volume of a voxel would be the product of **voxel_size** coords.
     r_max : int
         The radius of the spherical structuring element to use in the
         Maximum filter stage that is used to find peaks. The default is 4.

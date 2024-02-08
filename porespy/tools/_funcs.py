@@ -871,7 +871,7 @@ def _functions_to_table(mod, colwidth=[27, 48]):
     return s
 
 
-def mesh_region(region: bool, strel=None):
+def mesh_region(region: bool, strel=None, voxel_size=(1, 1, 1)):
     r"""
     Creates a tri-mesh of the provided region using the marching cubes
     algorithm
@@ -910,7 +910,7 @@ def mesh_region(region: bool, strel=None):
     else:
         padded_mask = np.reshape(im, (1,) + im.shape)
         padded_mask = np.pad(padded_mask, pad_width=pad_width, mode='constant')
-    verts, faces, norm, val = marching_cubes(padded_mask)
+    verts, faces, norm, val = marching_cubes(padded_mask, spacing=voxel_size)
     result = Results()
     result.verts = verts - pad_width
     result.faces = faces
