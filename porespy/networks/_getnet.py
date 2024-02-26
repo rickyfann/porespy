@@ -175,10 +175,12 @@ def regions_to_network(
         is found as the local maximum of the distance transform in the area
         where to regions meet.
     'throat.total_length'
-        The length between pore centered via the throat center
+        The length between pore centered via the throat center.
     'throat.direct_length'
         The length between two pore centers on a straight line between them
         that does not pass through the throat centroid.
+    'pore.phase'
+        Highest phase label in the pore.
 
     """
     logger.trace('Extracting pore/throat information')
@@ -191,10 +193,10 @@ def regions_to_network(
     if im.size != phases.size:
         raise Exception('regions and phase are different sizes, probably ' +
                         'because boundary regions were not added to phases')
-    dt = np.sqrt(pyedt.edt(phases == 1, scale=voxel_size))
+    dt = np.sqrt(pyedt.edt(phases >= 1, scale=voxel_size))
     #dt = edt.edt(phases == 1)
-    for i in range(2, phases.max()+1):
-        dt += np.sqrt(pyedt.edt(phases == i, scale=voxel_size))
+    #for i in range(2, phases.max()+1):
+    #    dt += np.sqrt(pyedt.edt(phases == i, scale=voxel_size))
 
     # Get 'slices' into im for each pore region
     slices = spim.find_objects(im)
