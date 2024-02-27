@@ -1,48 +1,65 @@
+import itertools
 import numpy as np
-from numba import njit
+from numba import njit, prange
 import scipy.ndimage as spim
 from skimage.morphology import disk, ball
 import pyedt
 from porespy.tools import extend_slice
 from porespy import settings
-from porespy.tools import get_tqdm, make_contiguous
+from porespy.tools import (
+    get_tqdm, 
+    make_contiguous, 
+    marching_cubes_area_and_volume, 
+    create_mc_template_list,
+)
 from porespy.metrics import region_surface_areas, region_interface_areas
 from porespy.metrics import region_volumes
 from loguru import logger
+
 tqdm = get_tqdm()
 
 @njit
-def calculate_pore_surface_area(pore_dt, voxel_size):
-    # Directions used to evaluate surface area
-    dirs = [
-        (1, 0, 0),
-        (0, 1, 0),
-        (0, 0, 1),
-        (-1, 0, 0),
-        (0, -1, 0),
-        (0, 0, -1),
-    ]
+def decompose_summation(n):
+    reduced_n = n
+    values = np.zeros(6, dtype=np.uint32)
+    for i in range(5, -1, -1):
+        if reduced_n >= 2 ** i:
+            reduced_n -= 2 ** i
+            values[i] = 1
+    return values
 
-    voxel_areas = [
+@njit
+def calculate_kernels(voxel_size):
+    voxel_size = np.array(voxel_size)
+    areas = np.zeros(64, dtype = np.float32)
+    face_areas = [
         voxel_size[1] * voxel_size[2],
-        voxel_size[2] * voxel_size[0],
+        voxel_size[0] * voxel_size[2],
         voxel_size[0] * voxel_size[1],
     ]
+    kernel = np.zeros(
+        (3, 3, 3,),
+        dtype = np.uint32,
+        )
 
-    p_area_surf = 0.0
-    p_borders = pore_dt <= max(voxel_size)
-    for x, y, z in np.argwhere(p_borders):
-        if x >= p_borders.shape[0]-1 or y >= p_borders.shape[1]-1 or z >= p_borders.shape[2]-1:
-            continue
+    for i, x, y, z in (
+        (0, 0, 1, 1),
+        (1, 2, 1, 1),
+        (2, 1, 0, 1),
+        (3, 1, 2, 1),
+        (4, 1, 1, 0),
+        (5, 1, 1, 2),
+    ):
+        kernel[x, y, z] = 2 ** i
 
-        if x * y * z == 0:
-            continue
+    for i in range(1, 64):
+        indexes = decompose_summation(i)
+        for j in range(6):
+            if indexes[j] == 1:
+                areas[i] += face_areas[j//2]
 
-        for j, dir in enumerate(dirs):
-            if not p_borders[x + dir[0], y + dir[1], z + dir[2]]:
-                p_area_surf += voxel_areas[ j % 3 ]
+    return kernel, areas
 
-    return p_area_surf
 
 def calculate_throat_geom_properties(vx, sub_dt, voxel_size):
     # Directions used to evaluate geom properties
@@ -67,8 +84,6 @@ def calculate_throat_geom_properties(vx, sub_dt, voxel_size):
     normal = np.array([dx*dy, dy*dz, dz*dx], dtype=np.float64)
     norm = np.linalg.norm(normal)
 
-    #t_perimeter_loc = np.sum(sub_dt[vx] < 2*voxel_size[0]) * voxel_size[0]
-    #t_area_loc = np.size(vx[0])*(voxel_size[1] * voxel_size[2])
     if norm != 0:
         normal /= norm
         t_perimeter_loc = np.sum(sub_dt[vx] < 2*max(voxel_size)) * np.linalg.norm(normal * voxel_size)
@@ -184,6 +199,7 @@ def regions_to_network(
 
     """
     logger.trace('Extracting pore/throat information')
+    template_areas, template_volumes = create_mc_template_list(spacing=voxel_size)
 
     im = make_contiguous(regions)
     struc_elem = disk if im.ndim == 2 else ball
@@ -194,9 +210,6 @@ def regions_to_network(
         raise Exception('regions and phase are different sizes, probably ' +
                         'because boundary regions were not added to phases')
     dt = np.sqrt(pyedt.edt(phases >= 1, scale=voxel_size))
-    #dt = edt.edt(phases == 1)
-    #for i in range(2, phases.max()+1):
-    #    dt += np.sqrt(pyedt.edt(phases == i, scale=voxel_size))
 
     # Get 'slices' into im for each pore region
     slices = spim.find_objects(im)
@@ -222,6 +235,27 @@ def regions_to_network(
     t_perimeter = []
     t_coords = []
 
+    index_kernel, areas = calculate_kernels(voxel_size)
+
+    @njit
+    def calculate_pore_area(im, pore):
+
+        p_area_surf = np.zeros(1, dtype=np.float32)
+
+        for i in range(1, im.shape[0] - 1):
+            for j in range(1, im.shape[1] - 1):
+                for k in range(1, im.shape[2] - 1):
+                    pore_label = pore + 1
+                    if pore_label != im[i,j,k]:
+                        continue
+
+                    kern_im = (im[i-1:i+2,j-1:j+2,k-1:k+2] != pore_label) * index_kernel
+
+                    index = np.sum(kern_im)
+                    p_area_surf += areas[index]
+
+        return p_area_surf
+
     # Start extracting size information for pores and throats
     msg = "Extracting pore and throat properties"
     for i in tqdm(Ps, desc=msg, **settings.tqdm):
@@ -234,7 +268,6 @@ def regions_to_network(
         pore_im = sub_im == i
         padded_mask = np.pad(pore_im, pad_width=1, mode='constant')
         pore_dt = np.sqrt(pyedt.edt(padded_mask, scale=voxel_size, force_method="cpu"))
-        #pore_dt = edt.edt(padded_mask)
         s_offset = np.array([i.start for i in s])
         p_label[pore] = i
         p_coords_cm[pore, :] = (spim.center_of_mass(pore_im) + s_offset) * voxel_size
@@ -245,14 +278,16 @@ def regions_to_network(
             p_porosity[pore] = ((porosity_map[s]*pore_im).sum() / pore_im.sum()) / 100
         else:
             p_porosity[pore] = 1
+        p_area_surf[pore], p_volume[pore] = marching_cubes_area_and_volume(
+            sub_im, 
+            target_label = i, 
+            template_areas=template_areas,
+            template_volumes=template_volumes,
+        )
         temp = np.vstack(np.where(sub_dt == sub_dt.max()))[:, 0]
         p_coords_dt_global[pore, :] = (temp + s_offset) * voxel_size
-        p_volume[pore] = np.sum(pore_im) * np.prod(voxel_size)
         p_dia_local[pore] = 2*np.amax(pore_dt)
         p_dia_global[pore] = 2*np.amax(sub_dt)
-        # The following is overwritten if accuracy is set to 'high'
-        #p_area_surf[pore] = np.sum(np.isin(pore_dt, voxel_size))*voxel_size[0]*voxel_size[1]
-        p_area_surf[pore] = calculate_pore_surface_area(pore_dt, voxel_size)
         im_w_throats = spim.binary_dilation(input=pore_im, structure=struc_elem(1))
         im_w_throats = im_w_throats*sub_im
         Pn = np.unique(im_w_throats)[1:] - 1
@@ -264,8 +299,10 @@ def regions_to_network(
                 # The following is overwritten if accuracy is set to 'high'
                 t_perimeter_loc, t_area_loc = calculate_throat_geom_properties(vx, sub_dt, voxel_size)
                 t_perimeter.append(t_perimeter_loc)
-                t_area.append(t_area_loc)
-                p_area_surf[pore] -= t_area_loc
+                #t_area.append(t_area_surf[j, pore])
+                t_area.append(1)
+                #t_area.append(t_area_loc)
+                #p_area_surf[pore] -= t_area_loc
                 t_inds = tuple([i+j for i, j in zip(vx, s_offset)])
                 temp = np.where(dt[t_inds] == np.amax(dt[t_inds]))[0][0]
                 t_coords.append(tuple([t_inds[k][temp]*voxel_size[k] for k in range(im.ndim)]))
@@ -314,23 +351,13 @@ def regions_to_network(
     dist = (p_coords[P12[:, 0]] - p_coords[P12[:, 1]])
     net['throat.direct_length'] = np.sqrt(np.sum(dist**2, axis=1))
     net['throat.perimeter'] = np.array(t_perimeter)
-    if (accuracy == 'high') and (im.ndim == 2):
-        logger.warning('High accuracy mode is not available in 2D, ' +
-                       'reverting to standard accuracy')
-        accuracy = 'standard'
-    if (accuracy == 'high'):
-        net['pore.volume'] = region_volumes(regions=im, mode='marching_cubes', voxel_size=voxel_size)
-        areas = region_surface_areas(regions=im, voxel_size=voxel_size)
-        net['pore.surface_area'] = areas
-        interface_area = region_interface_areas(regions=im, areas=areas, voxel_size=voxel_size)
-        A = interface_area.area
-        net['throat.cross_sectional_area'] = A
-        net['throat.equivalent_diameter'] = (4*A/np.pi)**(1/2)
-    else:
-        net['pore.volume'] = np.copy(p_volume)
-        net['pore.surface_area'] = np.copy(p_area_surf)
-        A = np.array(t_area)
-        net['throat.cross_sectional_area'] = A
-        net['throat.equivalent_diameter'] = (4*A/np.pi)**(1/2)
+
+    net['pore.volume'] = p_volume
+    net['pore.surface_area'] = p_area_surf
+    interface_area = region_interface_areas(regions=im, areas=p_area_surf, voxel_size=voxel_size)
+    A = interface_area.area
+    net['throat.cross_sectional_area'] = A
+    net['throat.equivalent_diameter'] = (4*A/np.pi)**(1/2)
+
 
     return net

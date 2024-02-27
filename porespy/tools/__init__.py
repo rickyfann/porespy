@@ -52,6 +52,7 @@ from ._utils import *
 from ._funcs import _check_for_singleton_axes
 from ._unpad import unpad
 from ._sphere_insertions import *
+from ._marching_cubes import *
 
 
 def _get_version():
