@@ -3,6 +3,7 @@ import math
 import itertools
 from pathlib import Path
 
+from numba import njit
 import numpy as np
 from skimage import measure
 from scipy import spatial
@@ -154,37 +155,64 @@ def create_mc_template_list(spacing = (1,1,1)):
         areas[i] = area
         volumes[i] = volume
 
+    areas = np.array(list(areas.values()), dtype=np.float32)
+    volumes = np.array(list(volumes.values()), dtype=np.float32)
+
     return areas, volumes
 
-def marching_cubes_area_and_volume(
-        img, 
-        target_label=1, 
-        spacing = (1,1,1),
-        template_areas=None,
-        template_volumes=None,
-        ):
 
+@njit
+def calculate_area_and_volume(
+    img,
+    vertex_index_array,
+    target_label=1,
+    spacing=(1, 1, 1),
+    template_areas=None,
+    template_volumes=None,
+):
     w, h, d = img.shape
-    vertex_index_array = np.array([2**i for i in range(8)])
-    vertex_index_array = vertex_index_array.reshape((2,2,2),order = 'F')
-    area = np.zeros(1, dtype = 'float32')
-    volume = np.zeros(1, dtype = 'float32')
+    area = 0.0
+    volume = 0.0
+
+    for x in range(w - 1):
+        for y in range(h - 1):
+            for z in range(d - 1):
+                sub_array = img[x : x + 2, y : y + 2, z : z + 2]
+
+                if target_label not in sub_array:
+                    continue
+
+                template_number = (
+                    (sub_array == target_label) * vertex_index_array
+                ).sum()
+
+                area += template_areas[template_number]
+                volume += template_volumes[template_number]
+
+    return area, volume
+
+
+def marching_cubes_area_and_volume(
+    img,
+    target_label=1,
+    spacing=(1, 1, 1),
+    template_areas=None,
+    template_volumes=None,
+):
+
     if (template_areas is None) or (template_volumes is None):
         template_areas, template_volumes = create_mc_template_list(spacing)
 
-    it = ((i, j, k) for i in range(w-1)
-                    for j in range(h-1)
-                    for k in range(d-1))
+    vertex_index_array = np.array([2**i for i in range(8)])
+    vertex_index_array = vertex_index_array.reshape((2, 2, 2), order="F")
 
-    for x, y, z in it:
-        sub_array = img[x:x+2, y:y+2, z:z+2]
-
-        if target_label not in sub_array:
-            continue
-
-        template_number = ((sub_array==target_label) * vertex_index_array).sum()
-
-        area += template_areas[template_number]
-        volume += template_volumes[template_number]
+    area, volume = calculate_area_and_volume(
+        img,
+        vertex_index_array,
+        target_label=target_label,
+        spacing=spacing,
+        template_areas=template_areas,
+        template_volumes=template_volumes,
+    )
 
     return area, volume
