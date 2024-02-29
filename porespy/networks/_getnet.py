@@ -18,50 +18,7 @@ from loguru import logger
 
 tqdm = get_tqdm()
 
-@njit
-def decompose_summation(n):
-    reduced_n = n
-    values = np.zeros(6, dtype=np.uint32)
-    for i in range(5, -1, -1):
-        if reduced_n >= 2 ** i:
-            reduced_n -= 2 ** i
-            values[i] = 1
-    return values
-
-@njit
-def calculate_kernels(voxel_size):
-    voxel_size = np.array(voxel_size)
-    areas = np.zeros(64, dtype = np.float32)
-    face_areas = [
-        voxel_size[1] * voxel_size[2],
-        voxel_size[0] * voxel_size[2],
-        voxel_size[0] * voxel_size[1],
-    ]
-    kernel = np.zeros(
-        (3, 3, 3,),
-        dtype = np.uint32,
-        )
-
-    for i, x, y, z in (
-        (0, 0, 1, 1),
-        (1, 2, 1, 1),
-        (2, 1, 0, 1),
-        (3, 1, 2, 1),
-        (4, 1, 1, 0),
-        (5, 1, 1, 2),
-    ):
-        kernel[x, y, z] = 2 ** i
-
-    for i in range(1, 64):
-        indexes = decompose_summation(i)
-        for j in range(6):
-            if indexes[j] == 1:
-                areas[i] += face_areas[j//2]
-
-    return kernel, areas
-
-
-def calculate_throat_geom_properties(vx, sub_dt, voxel_size):
+def calculate_throat_perimeter(vx, sub_dt, voxel_size):
     # Directions used to evaluate geom properties
     dirs = [
         (1, 0, 0),
@@ -89,14 +46,12 @@ def calculate_throat_geom_properties(vx, sub_dt, voxel_size):
         t_perimeter_loc = np.sum(sub_dt[vx] < 2*max(voxel_size)) * np.linalg.norm(normal * voxel_size)
         if t_perimeter_loc < 4. * np.linalg.norm(normal * voxel_size):
             t_perimeter_loc = 4. * np.linalg.norm(normal * voxel_size)
-        t_area_loc = len(vx[0])*np.sum(normal * voxel_areas)
     else:                        # cases where the throat cross section is aligned in a line of voxels
         t_perimeter_loc = np.sum(sub_dt[vx] < 2*voxel_size[0]) * voxel_size[0]
         if t_perimeter_loc < 4. * voxel_size[0]:
             t_perimeter_loc = 4. * voxel_size[0]
-        t_area_loc = len(vx[0])*voxel_areas[0]
 
-    return t_perimeter_loc, t_area_loc
+    return t_perimeter_loc
 
 def regions_to_network(
     regions, phases=None, voxel_size=(1, 1, 1), accuracy='standard', porosity_map=None
@@ -235,27 +190,6 @@ def regions_to_network(
     t_perimeter = []
     t_coords = []
 
-    index_kernel, areas = calculate_kernels(voxel_size)
-
-    @njit
-    def calculate_pore_area(im, pore):
-
-        p_area_surf = np.zeros(1, dtype=np.float32)
-
-        for i in range(1, im.shape[0] - 1):
-            for j in range(1, im.shape[1] - 1):
-                for k in range(1, im.shape[2] - 1):
-                    pore_label = pore + 1
-                    if pore_label != im[i,j,k]:
-                        continue
-
-                    kern_im = (im[i-1:i+2,j-1:j+2,k-1:k+2] != pore_label) * index_kernel
-
-                    index = np.sum(kern_im)
-                    p_area_surf += areas[index]
-
-        return p_area_surf
-
     # Start extracting size information for pores and throats
     msg = "Extracting pore and throat properties"
     for i in tqdm(Ps, desc=msg, **settings.tqdm):
@@ -297,12 +231,15 @@ def regions_to_network(
                 vx = np.where(im_w_throats == (j + 1))
                 t_dia_inscribed.append(2*np.amax(sub_dt[vx]))
                 # The following is overwritten if accuracy is set to 'high'
-                t_perimeter_loc, t_area_loc = calculate_throat_geom_properties(vx, sub_dt, voxel_size)
+                t_perimeter_loc = calculate_throat_perimeter(vx, sub_dt, voxel_size)
                 t_perimeter.append(t_perimeter_loc)
-                #t_area.append(t_area_surf[j, pore])
-                t_area.append(1)
-                #t_area.append(t_area_loc)
-                #p_area_surf[pore] -= t_area_loc
+                t_area_loc, t_volume = marching_cubes_area_and_volume(
+                    im_w_throats,
+                    target_label=j+1,
+                    template_areas=template_areas,
+                    template_volumes=template_volumes,
+                )
+                t_area.append(t_area_loc)
                 t_inds = tuple([i+j for i, j in zip(vx, s_offset)])
                 temp = np.where(dt[t_inds] == np.amax(dt[t_inds]))[0][0]
                 t_coords.append(tuple([t_inds[k][temp]*voxel_size[k] for k in range(im.ndim)]))
@@ -351,11 +288,9 @@ def regions_to_network(
     dist = (p_coords[P12[:, 0]] - p_coords[P12[:, 1]])
     net['throat.direct_length'] = np.sqrt(np.sum(dist**2, axis=1))
     net['throat.perimeter'] = np.array(t_perimeter)
-
     net['pore.volume'] = p_volume
     net['pore.surface_area'] = p_area_surf
-    interface_area = region_interface_areas(regions=im, areas=p_area_surf, voxel_size=voxel_size)
-    A = interface_area.area
+    A = np.array(t_area)
     net['throat.cross_sectional_area'] = A
     net['throat.equivalent_diameter'] = (4*A/np.pi)**(1/2)
 
