@@ -1,4 +1,5 @@
 import numpy as np
+import pyedt
 from porespy.networks import regions_to_network
 from porespy.networks import add_boundary_regions
 from porespy.networks import label_phases, label_boundaries
@@ -6,6 +7,25 @@ from porespy.filters import snow_partitioning, snow_partitioning_parallel
 from porespy.tools import Results
 from loguru import logger
 
+
+def estimate_overlap_and_chunk(im):
+    divs = [2 for i in range(im.ndim)]
+
+    shape = []
+    for i in range(im.ndim):
+        shape.append(divs[i] * (im.shape[i] // divs[i]))
+
+    if tuple(shape) != im.shape:
+        for i in range(im.ndim):
+            im = im.swapaxes(0, i)
+            im = im[: shape[i], ...]
+            im = im.swapaxes(i, 0)
+
+    chunk_shape = (np.array(shape) / np.array(divs)).astype(int)
+    dt = np.sqrt(pyedt.edt((im > 0)))
+    overlap = dt.max()
+
+    return overlap, chunk_shape
 
 def snow2(phases,
           phase_alias=None,
@@ -155,9 +175,13 @@ def snow2(phases,
         logger.info(f"Processing phase {i}...")
         phase = phases == i
         pk = None if peaks is None else peaks*phase
+        overlap, chunk = estimate_overlap_and_chunk(phase)
+        if (overlap>chunk).any():
+            parallelization = None
+            logger.warning("Disabling paralelization as overlap is bigger than chunk size.")
         if parallelization is not None:
             snow = snow_partitioning_parallel(
-                im=phase, sigma=sigma, r_max=r_max, **parallelization)
+                im=phase, sigma=sigma, r_max=r_max, overlap=overlap, **parallelization)
         else:
             snow = snow_partitioning(im=phase, sigma=sigma, r_max=r_max,
                                      peaks=pk)
