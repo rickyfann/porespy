@@ -8,6 +8,7 @@ from skimage import measure
 from porespy.tools import get_tqdm
 from loguru import logger
 from porespy import settings
+
 tqdm = get_tqdm()
 
 

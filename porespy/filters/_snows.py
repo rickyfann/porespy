@@ -511,7 +511,10 @@ def trim_nearby_peaks(peaks, dt, f=1):
     labels, N = spim.label(peaks > 0, structure=cube(3))
     crds = spim.measurements.center_of_mass(peaks > 0, labels=labels,
                                             index=np.arange(1, N + 1))
-    crds = np.vstack(crds).astype(int)  # Convert to numpy array of ints
+    try:
+        crds = np.vstack(crds).astype(int)  # Convert to numpy array of ints
+    except ValueError:
+        return peaks
     L = dt[tuple(crds.T)]  # Get distance to solid for each peak
     # Add tiny amount to joggle points to avoid equal distances to solid
     # arange was added instead of random values so the results are repeatable
@@ -1028,7 +1031,10 @@ def _snow_chunked(dt, r_max=5, sigma=0.4):
     dt2 = spim.gaussian_filter(input=dt, sigma=sigma)
     peaks = find_peaks(dt=dt2, r_max=r_max)
     peaks = trim_saddle_points(peaks=peaks, dt=dt)
-    peaks = trim_nearby_peaks(peaks=peaks, dt=dt)
-    peaks, N = spim.label(peaks > 0)
-    regions = watershed(image=-dt, markers=peaks)
+    if len(peaks) > 0:
+        peaks = trim_nearby_peaks(peaks=peaks, dt=dt)
+        peaks, N = spim.label(peaks > 0)
+        regions = watershed(image=-dt, markers=peaks)
+    else:
+        regions = np.ones_like(dt2)
     return regions * (dt > 0)
