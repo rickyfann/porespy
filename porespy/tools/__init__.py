@@ -48,8 +48,9 @@ ways do NOT return a modified version of the original image.
 """
 
 from ._funcs import *
+from ._funcs import jit_extend_slice, pad
 from ._utils import *
-from ._funcs import _check_for_singleton_axes
+from ._funcs import _check_for_singleton_axes, center_of_mass
 from ._unpad import unpad
 from ._sphere_insertions import *
 from ._marching_cubes import *
