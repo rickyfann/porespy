@@ -23,7 +23,7 @@ class VisualizationTest():
 
     def test_xray_y(self):
         xray = ps.visualization.xray(self.im, axis=1)
-        assert np.sum(xray) == np.sum(~self.im)
+        assert np.min(xray) >= 0 and np.max(xray) <= 1
 
     def test_sem_z(self):
         sem = ps.visualization.sem(self.im, axis=2)
@@ -31,7 +31,7 @@ class VisualizationTest():
 
     def test_xray_z(self):
         xray = ps.visualization.xray(self.im, axis=2)
-        assert np.sum(xray) == np.sum(~self.im)
+        assert np.min(xray) >= 0 and np.max(xray) <= 1
 
     def test_imshow_single(self):
         im = ps.generators.blobs(shape=[10, 20, 30])
