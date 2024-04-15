@@ -54,6 +54,7 @@ from ._funcs import _check_for_singleton_axes, center_of_mass
 from ._unpad import unpad
 from ._sphere_insertions import *
 from ._marching_cubes import *
+from ._marching_squares import *
 
 
 def _get_version():

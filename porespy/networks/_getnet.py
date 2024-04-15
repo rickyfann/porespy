@@ -13,6 +13,7 @@ from porespy.tools import (
     get_tqdm, 
     make_contiguous, 
     jit_marching_cubes_area_and_volume,
+    jit_marching_squares_perimeter_and_area,
     create_mc_template_list,
     calculate_area_and_volume,
     pad,
@@ -183,8 +184,6 @@ def regions_to_network(
     if threads is None:
         threads = (numba.config.NUMBA_NUM_THREADS - 2) // 2
 
-
-
     im = make_contiguous(regions)
     struc_elem = disk if im.ndim == 2 else ball
     voxel_size = tuple([float(i) for i in voxel_size])
@@ -197,11 +196,11 @@ def regions_to_network(
 
     # Get 'slices' into im for each pore region
     slices = spim.find_objects(im)
-    print(numba.typeof(slices))
+    #print(numba.typeof(slices))
     flat_slices = []
     for sl in slices:
         flat_slices.extend(sl)
-    print(numba.typeof(flat_slices))
+    #print(numba.typeof(flat_slices))
     for v in (        
         im, 
         dt,
@@ -212,7 +211,8 @@ def regions_to_network(
         voxel_size, 
         porosity_map,
         threads,):
-        print(numba.typeof(v))
+        pass
+        #print(numba.typeof(v))
 
     net = _jit_regions_to_network(
         im=im, 
@@ -264,136 +264,186 @@ def SimpleGenerator(x):
 
 
 @njit
+def _is_throat(pore_im, x, y, z):
+    w, h, d = pore_im.shape
+    for dx, dy, dz in (
+                    (-1, 0, 0),
+                    (1, 0, 0),
+                    (0, -1, 0),
+                    (0, 1, 0),
+                    (0, 0, -1),
+                    (0, 0, 1),
+                ):
+        x2 = x+dx
+        y2 = y+dy
+        z2 = z+dz
+        if (   x2 <  0
+            or x2 >= w
+            or y2 <  0
+            or y2 >= h
+            or z2 <  0
+            or z2 >= d):
+            pass
+        else:
+            if pore_im[x2, y2, z2] == 1:
+                return True
+    return False
+
+
+@njit
+def lateral_columns_generator(axis):
+    for dx in range(-1, 2):
+        for dy in range(-1, 2):
+            for dz in range(-1, 2):
+                if axis == 0:
+                    px = dy
+                    py = dz
+                elif axis == 1:
+                    px = dx
+                    py = dz
+                elif axis == 2:
+                    px = dx
+                    py = dy
+                yield dx, dy, dz, px, py
+
+
+@njit
+def _get_max_coords(im):
+    w, h, d = im.shape
+    coords = np.zeros(4, dtype=np.float64)
+    curr_val = 0.
+    max_count = 1
+    for x in range(w):
+        for y in range(h):
+            for z in range(d):
+                new_val = im[x, y, z]
+                if new_val > curr_val:
+                    curr_val = new_val
+                    coords[0] = np.float64(x)
+                    coords[1] = np.float64(y)
+                    coords[2] = np.float64(z)
+                    max_count = 1
+                elif new_val == curr_val:
+                    max_count += 1
+                    coords[0] = ((max_count-1)*coords[0])/max_count + np.float64(x)/max_count
+                    coords[1] = ((max_count-1)*coords[1])/max_count + np.float64(y)/max_count
+                    coords[2] = ((max_count-1)*coords[2])/max_count + np.float64(z)/max_count
+
+    return coords
+
+@njit
 def _get_throats(pore_im, sub_im, sub_dt, voxel_size):
     """
     pore_im --> Pore image: bool array of the current pore
     sub_im --> subimage: int array, with pore labels (n+1 of actual pore table index)
     """
     w, h, d = pore_im.shape
-    c = set()
-    throats_img = np.zeros_like(sub_im)
-    #c = set((np.int32(1),))
-    #c.remove(np.int32(1))
+    conns = set()
     inscribed_diameters = {-1: 0.}
     areas = {-1: 0.}
     perimeters = {-1: 0.}
     centers = {-1: (0., 0., 0.)}
+    val_count = Dict()
 
-    secondary_neighbours = { #(dx, dy, dz, index_of_edge_legth)
-        0: (
-            (0, -1, 0, 2, 0),
-            (0, 1, 0, 2, 1),
-            (-1, -1, 0, 2, 0),
-            (-1, 1, 0, 2, 1),
-            (1, -1, 0, 2, 0),
-            (1, 1, 0, 2, 1),
-            (0, 0, -1, 1, 0),
-            (0, 0, 1, 1, 1),
-            (1, 0, -1, 1, 0),
-            (1, 0, 1, 1, 1),
-            (-1, 0, -1, 1, 0),
-            (-1, 0, 1, 1, 1),
-        ),
-        1: (
-            (-1, -1, 0, 2, 0),
-            (1, -1, 0, 2, 1),
-            (0, -1, -1, 0, 0),
-            (0, -1, 1, 0, 1),
-            (-1, 0, 0, 2, 0),
-            (1, 0, 0, 2, 1),
-            (0, 0, -1, 0, 0),
-            (0, 0, 1, 0, 1),
-            (-1, 1, 0, 2, 0),
-            (1, 1, 0, 2, 1),
-            (0, 1, -1, 0, 0),
-            (0, 1, 1, 0, 1),
-        ),
-        2: (
-            (-1, 0, -1, 1, 0),
-            (1, 0, -1, 1, 1),
-            (0, -1, -1, 0, 0),
-            (0, 1, -1, 0, 1),
-            (-1, 0, 0, 1, 0),
-            (1, 0, 0, 1, 1),
-            (0, -1, 0, 0, 0),
-            (0, 1, 0, 0, 1),
-            (-1, 0, 1, 1, 0),
-            (1, 0, 1, 1, 1),
-            (0, -1, 1, 0, 0),
-            (0, 1, 1, 0, 1),
-        ),
-    }
-    face_area = {
-        0: voxel_size[1] * voxel_size[2],
-        1: voxel_size[0] * voxel_size[2],
-        2: voxel_size[0] * voxel_size[1],
-    }
-
-    for x in range(1, w - 1):
-        for y in range(1, h - 1):
-            for z in range(1, d - 1):
-                if pore_im[x, y, z] == 0:
-                    continue
-                for dx, dy, dz, ax in (
+    face_neighbours = (
                     (-1, 0, 0, 0),
                     (1, 0, 0, 0),
                     (0, -1, 0, 1),
                     (0, 1, 0, 1),
                     (0, 0, -1, 2),
                     (0, 0, 1, 2),
-                ):
-                    if pore_im[x+dx, y+dy, z+dz] == 0:
-                        val = sub_im[x+dx, y+dy, z+dz] - 1
+                )
+
+    for x in range(1, w - 1):
+        for y in range(1, h - 1):
+            for z in range(1, d - 1):
+                if pore_im[x, y, z] == 0:
+                    continue
+                for dx, dy, dz, ax in face_neighbours:
+                    x2 = x + dx
+                    y2 = y + dy
+                    z2 = z + dz
+                    if pore_im[x2, y2, z2] == 0:
+                        val = sub_im[x2, y2, z2] - 1
                         if val == -1:
                             continue
-                        c.add(np.int64(val))
-                        throats_img[x+dx, y+dy, z+dz] = val
-                        dt = sub_dt[x+dx, y+dy, z+dz]
-                        #inscribed_diameters[val] = max(inscribed_diameters.get(val, 0.), dt)
+                        conns.add(np.int64(val))
+
+                        # Center and diameter calculations, for every throat voxel
+                        dt = sub_dt[x2, y2, z2]
                         if val in list(inscribed_diameters.keys()):
                             last_diameter = inscribed_diameters[val]
                             if dt > last_diameter: 
+                                val_count[val] = 1
                                 inscribed_diameters[val] = dt
                                 centers[val] = (
-                                    (x+dx) * voxel_size[0], 
-                                    (y+dy) * voxel_size[1],
-                                    (z+dz) * voxel_size[2],
+                                    (x2) * voxel_size[0], 
+                                    (y2) * voxel_size[1],
+                                    (z2) * voxel_size[2],
+                                    )
+                            elif dt == last_diameter:
+                                val_count[val] += 1
+                                n = val_count[val]
+                                centers[val] = (
+                                    ((n-1) * centers[val][0]) / n + ((x2) * voxel_size[0]) / n, 
+                                    ((n-1) * centers[val][1]) / n + ((y2) * voxel_size[1]) / n,
+                                    ((n-1) * centers[val][2]) / n + ((z2) * voxel_size[2]) / n,
                                     )
                         else:
                             inscribed_diameters[val] = dt
+                            val_count[val] = 1
                             centers[val] = (
-                                (x+dx) * voxel_size[0], 
-                                (y+dy) * voxel_size[1],
-                                (z+dz) * voxel_size[2],
+                                (x2) * voxel_size[0], 
+                                (y2) * voxel_size[1],
+                                (z2) * voxel_size[2],
                                 )
                         
-                        if val in list(areas.keys()):
-                            areas[val] += face_area[ax]
-                        else:
-                            areas[val] = face_area[ax]
+                        # get pseudo-projection
+                        projection = np.zeros((3, 3), dtype=np.uint8)
+                        projection[1, 1] = 1
 
-                        edges = np.zeros((3, 2), dtype=np.uint8)
-                        for dx2, dy2, dz2, length_index, side in secondary_neighbours[ax]:
-                            if ((x+dx+dx2 < 0) or
-                                (x+dx+dx2 >= w) or
-                                (y+dy+dy2 < 0) or
-                                (y+dy+dy2 >= h) or
-                                (z+dz+dz2 < 0) or
-                                (z+dz+dz2 >= d)
+                        for dx2, dy2, dz2, px, py in lateral_columns_generator(ax):
+                            x3 = x2 + dx2
+                            y3 = y2 + dy2
+                            z3 = z2 + dz2
+
+                            if ((x3 <  0) or
+                                (x3 >= w) or
+                                (y3 <  0) or
+                                (y3 >= h) or
+                                (z3 <  0) or
+                                (z3 >= d)
                                 ): continue
-                            if (
-                                sub_im[x+dx+dx2, y+dy+dy2, z+dz+dz2] != val
-                                and edges[length_index, side] == 0
-                            ):
-                                edges[length_index, side] = 1
-                                if val in list(perimeters.keys()):
-                                    perimeters[val] += voxel_size[length_index]
-                                else:
-                                    perimeters[val] = voxel_size[length_index]
 
-    return(
-        throats_img, 
-        list(c), 
+                            if sub_im[x3, y3, z3] != (val + 1):
+                                pass
+                            elif _is_throat(pore_im, x3, y3, z3):
+                                projection[px, py] = 1
+                        if ax == 0:
+                            projection_size = (voxel_size[1], voxel_size[2])
+                        elif ax == 1:
+                            projection_size = (voxel_size[0], voxel_size[2])
+                        elif ax == 2:
+                            projection_size = (voxel_size[0], voxel_size[1])
+                        perimeter, area = jit_marching_squares_perimeter_and_area(
+                            projection, 
+                            1,
+                            projection_size,
+                            overlap=True,
+                            )
+
+                        if val in list(perimeters.keys()):
+                            perimeters[val] += perimeter
+                        else:
+                            perimeters[val] = perimeter
+
+                        if val in list(areas.keys()):
+                            areas[val] += area
+                        else:
+                            areas[val] = area
+
+    return( 
+        list(conns), 
         inscribed_diameters,
         areas,
         perimeters,
@@ -404,223 +454,224 @@ def _get_throats(pore_im, sub_im, sub_dt, voxel_size):
     #im_w_throats = _binary_dilation(input=pore_im, structure=struc_elem)
     #im_w_throats = im_w_throats*sub_im
 
-@njit(debug=False)
-def _jit_regions_to_network(
-    im, 
-    dt,
-    flat_slices,
-    template_areas,
-    template_volumes,
-    phases, 
-    voxel_size, 
-    porosity_map,
-    threads,
-):
+# @njit(debug=False)
+# def _jit_regions_to_network_serial(
+#     im, 
+#     dt,
+#     flat_slices,
+#     template_areas,
+#     template_volumes,
+#     phases, 
+#     voxel_size, 
+#     porosity_map,
+#     threads,
+# ):
 
 
-    #slices = [[slice(0,10), slice(0,10), slice(0,10),]]
-    slices = []
-    #im = np.zeros((10,10,10), dtype=np.uint16)
-    #dt = np.zeros((10,10,10), dtype=np.uint16)
-    for i in range(0, len(flat_slices), 3):
-        slices.append((
-            flat_slices[i],
-            flat_slices[i+1],
-            flat_slices[i+2],
-        ))
+#     #slices = [[slice(0,10), slice(0,10), slice(0,10),]]
+#     slices = []
+#     #im = np.zeros((10,10,10), dtype=np.uint16)
+#     #dt = np.zeros((10,10,10), dtype=np.uint16)
+#     for i in range(0, len(flat_slices), 3):
+#         slices.append((
+#             flat_slices[i],
+#             flat_slices[i+1],
+#             flat_slices[i+2],
+#         ))
 
     
-    # Initialize arrays
-    Ps = np.arange(1, np.amax(im)+1)
-    Np = np.int64(Ps.size)
-    p_coords_cm = np.zeros((Np, im.ndim), dtype=float)
-    p_coords_dt = np.zeros((Np, im.ndim), dtype=float)
-    p_coords_dt_global = np.zeros((Np, im.ndim), dtype=float)
-    p_volume = np.zeros((Np, ), dtype=float)
-    p_dia_local = np.zeros((Np, ), dtype=float)
-    p_dia_global = np.zeros((Np, ), dtype=float)
-    p_label = np.zeros((Np, ), dtype=np.int64)
-    p_area_surf = np.zeros((Np, ), dtype=float)
-    p_phase = np.zeros((Np, ), dtype=np.int64)
-    p_porosity = np.ones((Np, ), dtype=float)
-    # The number of throats is not known at the start, so lists are used
-    # which can be dynamically resized more easily.
-    """
-    t_conns = [1]
-    t_dia_inscribed = [1]
-    t_area = [1]
-    t_perimeter = [1]
-    t_coords = [1]
-    """
-    t_conns_0 = []
-    t_conns_1 = []
-    t_dia_inscribed = []
-    t_area = []
-    t_perimeter = []
-    t_coords_0 = []
-    t_coords_1 = []
-    t_coords_2 = []
+#     # Initialize arrays
+#     Ps = np.arange(1, np.amax(im)+1)
+#     Np = np.int64(Ps.size)
+#     p_coords_cm = np.zeros((Np, im.ndim), dtype=float)
+#     p_coords_dt = np.zeros((Np, im.ndim), dtype=float)
+#     p_coords_dt_global = np.zeros((Np, im.ndim), dtype=float)
+#     p_volume = np.zeros((Np, ), dtype=float)
+#     p_dia_local = np.zeros((Np, ), dtype=float)
+#     p_dia_global = np.zeros((Np, ), dtype=float)
+#     p_label = np.zeros((Np, ), dtype=np.int64)
+#     p_area_surf = np.zeros((Np, ), dtype=float)
+#     p_phase = np.zeros((Np, ), dtype=np.int64)
+#     p_porosity = np.ones((Np, ), dtype=float)
+#     # The number of throats is not known at the start, so lists are used
+#     # which can be dynamically resized more easily.
+#     """
+#     t_conns = [1]
+#     t_dia_inscribed = [1]
+#     t_area = [1]
+#     t_perimeter = [1]
+#     t_coords = [1]
+#     """
+#     t_conns_0 = []
+#     t_conns_1 = []
+#     t_dia_inscribed = []
+#     t_area = []
+#     t_perimeter = []
+#     t_coords_0 = []
+#     t_coords_1 = []
+#     t_coords_2 = []
 
 
-    worker_status = np.zeros((threads-1,), dtype=np.uint32)
-    worker_target = np.zeros((threads-1,), dtype=np.uint32)
+#     worker_status = np.zeros((threads-1,), dtype=np.uint32)
+#     worker_target = np.zeros((threads-1,), dtype=np.uint32)
 
-    # Start extracting size information for pores and throats
+#     # Start extracting size information for pores and throats
 
-    #print("Np: ", Np)
+#     #print("Np: ", Np)
 
-    for pore_i in range(1, Np+1):
-
-
-            pore = pore_i - 1
-            #if pore >= 18101: print("Pore: ", pore)
-            s = jit_extend_slice(slices[pore], im.shape)
-            sub_im = im[s]
-            sub_dt = dt[s]
-            pore_im = sub_im == pore_i
-            padded_mask = pad(pore_im)
-            pore_dt = pyedt.jit_edt_cpu(padded_mask, scale=voxel_size, sqrt_result=True)
-            s_offset = np.array([a.start for a in s], dtype=np.float64)
-            p_label[pore] = pore_i
-            p_coords_cm[pore, :] = (center_of_mass(pore_im) + s_offset) * np.array(voxel_size)
-            temp = np.vstack(np.where(pore_dt == pore_dt.max()))[:, 0]
-            p_coords_dt[pore, :] = (temp + s_offset) * np.array(voxel_size)
-            p_phase[pore] = (phases[s]*pore_im).max()
-            if porosity_map is not None:
-                p_porosity[pore] = ((porosity_map[s]*pore_im).sum() / pore_im.sum()) / 100
-            else:
-                p_porosity[pore] = 1.
-            #if pore >= test_pore: print(self_id, pore, "p c")
-            #if pore >= test_pore: mc_debug = False #debugging line, TODO: remove
-            #else: 
-            mc_debug = False #debugging line, TODO: remove
-            #if pore >= 18101: print("Pore: ", pore, " MC ")
-            p_area_surf[pore], p_volume[pore] = jit_marching_cubes_area_and_volume(
-                sub_im, 
-                target_label = pore_i, 
-                template_areas=template_areas,
-                template_volumes=template_volumes,
-                debug=mc_debug, #debugging line, TODO: remove
-            )
-            temp = np.vstack(np.where(sub_dt == sub_dt.max()))[:, 0]
-            p_coords_dt_global[pore, :] = (temp + s_offset) * np.array(voxel_size)
-            p_dia_local[pore] = 2*np.amax(pore_dt)
-            p_dia_global[pore] = 2*np.amax(sub_dt)
-            #if pore >= 18101: print("Pore: ", pore, " GT ")
-            im_w_throats, Pn, inscribed_diameter, areas, perimeters, centers = _get_throats(pore_im, sub_im, sub_dt, voxel_size)
-            #if pore >= 18101: print("Pore: ", pore, " Pn: ", Pn)
-            for j in Pn:
-                if j > pore:
-
-                    #if pore >= 18101: print(j)
-                    #for d in (inscribed_diameter, perimeters, areas, centers):
-                    #    print(list(d.keys))
-                    #    print(list(d.items()))
-                    # if j == 772:
-                    #     print(pore_im.shape)
-                    #     print(pore_im)
-                    #     print(sub_im)
-                    #     print(sub_dt)
-                    #if pore >= 18101:  print(list(inscribed_diameter.items()))
-                    #if pore >= 18101:  print(list(perimeters.items()))
-                    #if pore >= 18101:  print(list(areas.items()))
-                    #if pore >= 18101:  print(list(centers.items()))
-                    t_conns_0.append(pore)
-                    t_conns_1.append(j)
-                    t_dia_inscribed.append(inscribed_diameter[j])
-                    t_perimeter.append(perimeters[j])
-                    t_area.append(areas[j])
-                    t_coords_0.append(centers[j][0])
-                    t_coords_1.append(centers[j][1])
-                    t_coords_2.append(centers[j][2])
+#     for pore_i in range(1, Np+1):
 
 
-    #print("finished main loop")
-    # Clean up values
-    Nt = len(t_conns_0)  # Get number of throats
+#             pore = pore_i - 1
+#             #if pore >= 18101: print("Pore: ", pore)
+#             s = jit_extend_slice(slices[pore], im.shape)
+#             sub_im = im[s]
+#             sub_dt = dt[s]
+#             pore_im = sub_im == pore_i
+#             padded_mask = pad(pore_im)
+#             pore_dt = pyedt.jit_edt_cpu(padded_mask, scale=voxel_size, sqrt_result=True)
+#             s_offset = np.array([a.start for a in s], dtype=np.float64)
+#             p_label[pore] = pore_i
+#             p_coords_cm[pore, :] = (center_of_mass(pore_im) + s_offset) * np.array(voxel_size)
+#             temp = np.vstack(np.where(pore_dt == pore_dt.max()))[:, 0]
+#             p_coords_dt[pore, :] = (temp + s_offset) * np.array(voxel_size)
+#             p_phase[pore] = (phases[s]*pore_im).max()
+#             if porosity_map is not None:
+#                 p_porosity[pore] = ((porosity_map[s]*pore_im).sum() / pore_im.sum()) / 100
+#             else:
+#                 p_porosity[pore] = 1.
+#             #if pore >= test_pore: print(self_id, pore, "p c")
+#             #if pore >= test_pore: mc_debug = False #debugging line, TODO: remove
+#             #else: 
+#             mc_debug = False #debugging line, TODO: remove
+#             #if pore >= 18101: print("Pore: ", pore, " MC ")
+#             p_area_surf[pore], p_volume[pore] = jit_marching_cubes_area_and_volume(
+#                 sub_im, 
+#                 target_label = pore_i, 
+#                 template_areas=template_areas,
+#                 template_volumes=template_volumes,
+#                 debug=mc_debug, #debugging line, TODO: remove
+#             )
+#             temp = np.vstack(np.where(sub_dt == sub_dt.max()))[:, 0]
+#             p_coords_dt_global[pore, :] = (temp + s_offset) * np.array(voxel_size)
+#             print(temp, s_offset, p_coords_dt_global[pore, :])
+#             p_dia_local[pore] = 2*np.amax(pore_dt)
+#             p_dia_global[pore] = 2*np.amax(sub_dt)
+#             #if pore >= 18101: print("Pore: ", pore, " GT ")
+#             Pn, inscribed_diameter, areas, perimeters, centers = _get_throats(pore_im, sub_im, sub_dt, voxel_size)
+#             #if pore >= 18101: print("Pore: ", pore, " Pn: ", Pn)
+#             for j in Pn:
+#                 if j > pore:
 
-    if Nt == 0:
-        return None
+#                     #if pore >= 18101: print(j)
+#                     #for d in (inscribed_diameter, perimeters, areas, centers):
+#                     #    print(list(d.keys))
+#                     #    print(list(d.items()))
+#                     # if j == 772:
+#                     #     print(pore_im.shape)
+#                     #     print(pore_im)
+#                     #     print(sub_im)
+#                     #     print(sub_dt)
+#                     #if pore >= 18101:  print(list(inscribed_diameter.items()))
+#                     #if pore >= 18101:  print(list(perimeters.items()))
+#                     #if pore >= 18101:  print(list(areas.items()))
+#                     #if pore >= 18101:  print(list(centers.items()))
+#                     t_conns_0.append(pore)
+#                     t_conns_1.append(j)
+#                     t_dia_inscribed.append(inscribed_diameter[j])
+#                     t_perimeter.append(perimeters[j])
+#                     t_area.append(areas[j])
+#                     t_coords_0.append(centers[j][0])
+#                     t_coords_1.append(centers[j][1])
+#                     t_coords_2.append(centers[j][2])
 
-    net_float = Dict.empty(
-    key_type=types.unicode_type,
-    value_type=FLOAT_TYPE,
-    )
+
+#     #print("finished main loop")
+#     # Clean up values
+#     Nt = len(t_conns_0)  # Get number of throats
+
+#     if Nt == 0:
+#         return None
+
+#     net_float = Dict.empty(
+#     key_type=types.unicode_type,
+#     value_type=FLOAT_TYPE,
+#     )
     
-    net_int = Dict.empty(
-    key_type=types.unicode_type,
-    value_type=INT_TYPE,
-    )
+#     net_int = Dict.empty(
+#     key_type=types.unicode_type,
+#     value_type=INT_TYPE,
+#     )
 
-    t_coords_0_arr = np.array(t_coords_0, dtype=np.float64)
-    t_coords_1_arr = np.array(t_coords_1, dtype=np.float64)
-    t_coords_2_arr = np.array(t_coords_2, dtype=np.float64)
+#     t_coords_0_arr = np.array(t_coords_0, dtype=np.float64)
+#     t_coords_1_arr = np.array(t_coords_1, dtype=np.float64)
+#     t_coords_2_arr = np.array(t_coords_2, dtype=np.float64)
 
-    ND = im.ndim
-    # Define all the fundamental stuff
-    net_int['throat.conns_0'] = np.array(t_conns_0)
-    net_int['throat.conns_1'] = np.array(t_conns_1)
-    net_float['pore.coords_0'] = p_coords_cm[:, 0]
-    net_float['pore.coords_1'] = p_coords_cm[:, 1]
-    net_float['pore.coords_2'] = p_coords_cm[:, 2]
-    net_int['pore.all'] = np.ones_like(net_float['pore.coords_0'][:], dtype=np.int64)
-    net_int['throat.all'] = np.ones_like(net_int['throat.conns_0'][:], dtype=np.int64)
-    net_int['pore.region_label'] = p_label
-    net_int['pore.phase'] = p_phase
-    net_float['pore.subresolution_porosity'] = p_porosity
-    net_int['throat.phases_0'] = net_int['pore.phase'][net_int['throat.conns_0']]
-    net_int['throat.phases_1'] = net_int['pore.phase'][net_int['throat.conns_1']]
-    V = np.copy(p_volume)
-    net_float['pore.region_volume'] = V
-    f = 3/4
-    net_float['pore.equivalent_diameter'] = 2*(V/np.pi * f)**(1/ND)
-    # Extract the geometric stuff
-    net_float['pore.local_peak_0'] = np.copy(p_coords_dt[:, 0])
-    net_float['pore.local_peak_1'] = np.copy(p_coords_dt[:, 1])
-    net_float['pore.local_peak_2'] = np.copy(p_coords_dt[:, 2])
-    net_float['pore.global_peak_0'] = np.copy(p_coords_dt_global[:, 0])
-    net_float['pore.global_peak_1'] = np.copy(p_coords_dt_global[:, 1])
-    net_float['pore.global_peak_2'] = np.copy(p_coords_dt_global[:, 2])
-    net_float['pore.geometric_centroid_0'] = np.copy(p_coords_cm[:, 0])
-    net_float['pore.geometric_centroid_1'] = np.copy(p_coords_cm[:, 1])
-    net_float['pore.geometric_centroid_2'] = np.copy(p_coords_cm[:, 2])
-    net_float['throat.global_peak_0'] = t_coords_0_arr
-    net_float['throat.global_peak_1'] = t_coords_1_arr
-    net_float['throat.global_peak_2'] = t_coords_2_arr
-    net_float['pore.inscribed_diameter'] = np.copy(p_dia_local)
-    net_float['pore.extended_diameter'] = np.copy(p_dia_global)
-    net_float['throat.inscribed_diameter'] = np.array(t_dia_inscribed, dtype=np.float64)
-    P1 = net_int['throat.conns_0']
-    P2 = net_int['throat.conns_1']
-    PT1 = np.sqrt(
-                    (net_float['pore.local_peak_0'][P1]-t_coords_0_arr)**2
-                  + (net_float['pore.local_peak_1'][P1]-t_coords_1_arr)**2
-                  + (net_float['pore.local_peak_2'][P1]-t_coords_2_arr)**2
-            )
-    PT2 = np.sqrt(
-                    (net_float['pore.local_peak_0'][P2]-t_coords_0_arr)**2
-                  + (net_float['pore.local_peak_1'][P2]-t_coords_1_arr)**2
-                  + (net_float['pore.local_peak_2'][P2]-t_coords_2_arr)**2
-            )
-    net_float['throat.total_length'] = PT1 + PT2
-    dist = np.sqrt(
-                    (net_float['pore.local_peak_0'][P1]-net_float['pore.local_peak_0'][P2])**2
-                  + (net_float['pore.local_peak_1'][P1]-net_float['pore.local_peak_1'][P2])**2
-                  + (net_float['pore.local_peak_2'][P1]-net_float['pore.local_peak_2'][P2])**2
-            )
-    net_float['throat.direct_length'] = dist
-    net_float['throat.perimeter'] = np.array(t_perimeter)
-    net_float['pore.volume'] = p_volume
-    net_float['pore.surface_area'] = p_area_surf
-    A = np.array(t_area)
-    net_float['throat.cross_sectional_area'] = A
-    net_float['throat.equivalent_diameter'] = (4*A/np.pi)**(1/2)
+#     ND = im.ndim
+#     # Define all the fundamental stuff
+#     net_int['throat.conns_0'] = np.array(t_conns_0)
+#     net_int['throat.conns_1'] = np.array(t_conns_1)
+#     net_float['pore.coords_0'] = p_coords_cm[:, 0]
+#     net_float['pore.coords_1'] = p_coords_cm[:, 1]
+#     net_float['pore.coords_2'] = p_coords_cm[:, 2]
+#     net_int['pore.all'] = np.ones_like(net_float['pore.coords_0'][:], dtype=np.int64)
+#     net_int['throat.all'] = np.ones_like(net_int['throat.conns_0'][:], dtype=np.int64)
+#     net_int['pore.region_label'] = p_label
+#     net_int['pore.phase'] = p_phase
+#     net_float['pore.subresolution_porosity'] = p_porosity
+#     net_int['throat.phases_0'] = net_int['pore.phase'][net_int['throat.conns_0']]
+#     net_int['throat.phases_1'] = net_int['pore.phase'][net_int['throat.conns_1']]
+#     V = np.copy(p_volume)
+#     net_float['pore.region_volume'] = V
+#     f = 3/4
+#     net_float['pore.equivalent_diameter'] = 2*(V/np.pi * f)**(1/ND)
+#     # Extract the geometric stuff
+#     net_float['pore.local_peak_0'] = np.copy(p_coords_dt[:, 0])
+#     net_float['pore.local_peak_1'] = np.copy(p_coords_dt[:, 1])
+#     net_float['pore.local_peak_2'] = np.copy(p_coords_dt[:, 2])
+#     net_float['pore.global_peak_0'] = np.copy(p_coords_dt_global[:, 0])
+#     net_float['pore.global_peak_1'] = np.copy(p_coords_dt_global[:, 1])
+#     net_float['pore.global_peak_2'] = np.copy(p_coords_dt_global[:, 2])
+#     net_float['pore.geometric_centroid_0'] = np.copy(p_coords_cm[:, 0])
+#     net_float['pore.geometric_centroid_1'] = np.copy(p_coords_cm[:, 1])
+#     net_float['pore.geometric_centroid_2'] = np.copy(p_coords_cm[:, 2])
+#     net_float['throat.global_peak_0'] = t_coords_0_arr
+#     net_float['throat.global_peak_1'] = t_coords_1_arr
+#     net_float['throat.global_peak_2'] = t_coords_2_arr
+#     net_float['pore.inscribed_diameter'] = np.copy(p_dia_local)
+#     net_float['pore.extended_diameter'] = np.copy(p_dia_global)
+#     net_float['throat.inscribed_diameter'] = np.array(t_dia_inscribed * 2 - 1, dtype=np.float64)
+#     P1 = net_int['throat.conns_0']
+#     P2 = net_int['throat.conns_1']
+#     PT1 = np.sqrt(
+#                     (net_float['pore.global_peak_0'][P1]-t_coords_0_arr)**2
+#                   + (net_float['pore.global_peak_1'][P1]-t_coords_1_arr)**2
+#                   + (net_float['pore.global_peak_2'][P1]-t_coords_2_arr)**2
+#             )
+#     PT2 = np.sqrt(
+#                     (net_float['pore.global_peak_0'][P2]-t_coords_0_arr)**2
+#                   + (net_float['pore.global_peak_1'][P2]-t_coords_1_arr)**2
+#                   + (net_float['pore.global_peak_2'][P2]-t_coords_2_arr)**2
+#             )
+#     net_float['throat.total_length'] = PT1 + PT2
+#     dist = np.sqrt(
+#                     (net_float['pore.global_peak_0'][P1]-net_float['pore.global_peak_0'][P2])**2
+#                   + (net_float['pore.global_peak_1'][P1]-net_float['pore.global_peak_1'][P2])**2
+#                   + (net_float['pore.global_peak_2'][P1]-net_float['pore.global_peak_2'][P2])**2
+#             )
+#     net_float['throat.direct_length'] = dist
+#     net_float['throat.perimeter'] = np.array(t_perimeter)
+#     net_float['pore.volume'] = p_volume
+#     net_float['pore.surface_area'] = p_area_surf
+#     A = np.array(t_area)
+#     net_float['throat.cross_sectional_area'] = A
+#     net_float['throat.equivalent_diameter'] = (4*A/np.pi)**(1/2)
 
-    #return net_float, net_int
-    for key, val in net_int.items():
-        net_float[f"{key}_int64"] = val.view(np.float64)
+#     #return net_float, net_int
+#     for key, val in net_int.items():
+#         net_float[f"{key}_int64"] = val.view(np.float64)
 
-    return net_float
+#     return net_float
 
 
 @njit(parallel=True, debug=False)
@@ -636,8 +687,6 @@ def _jit_regions_to_network_parallel(
     threads,
 ):
 
-    threads = 5
-
     #slices = [[slice(0,10), slice(0,10), slice(0,10),]]
     slices = []
     #im = np.zeros((10,10,10), dtype=np.uint16)
@@ -648,7 +697,7 @@ def _jit_regions_to_network_parallel(
             flat_slices[i+1],
             flat_slices[i+2],
         ))
-
+    mc_debug=False
     
     # Initialize arrays
     Ps = np.arange(1, np.amax(im)+1)
@@ -707,14 +756,13 @@ def _jit_regions_to_network_parallel(
 
     #print("threads: ", threads)
     #print("Np: ", Np)
-    test_pore = 1820200
+    #test_pore = 1820200
 
     for self_id in prange(threads):
 
         if (self_id == (threads - 1)):
 
             current_pore = 1
-            print("master starting")
 
             while True:
                 wait()
@@ -747,12 +795,12 @@ def _jit_regions_to_network_parallel(
                         else:
                             worker_status[worker_id] = FINISHED
                 if (np.equal(worker_status, FINISHED).all()):
-                    print("master finished")
+                    #print("master finished")
                     break
 
         else:
             
-            print(self_id, worker_status, worker_target)
+            #print(self_id, worker_status, worker_target)
             
             while True:
                 
@@ -775,7 +823,7 @@ def _jit_regions_to_network_parallel(
                     pore_i = worker_target[self_id]
 
                     pore = pore_i - 1
-                    if pore >= test_pore: print(self_id, pore, "p a")
+                    #if pore >= test_pore: print(self_id, pore, "p a")
                     #if slices[pore] is None:
                     #    continue
                     s = jit_extend_slice(slices[pore], im.shape)
@@ -783,21 +831,24 @@ def _jit_regions_to_network_parallel(
                     sub_dt = dt[s]
                     pore_im = sub_im == pore_i
                     padded_mask = pad(pore_im)
-                    if pore >= test_pore: print(self_id, pore, "p b")
+                    #if pore >= test_pore: print(self_id, pore, "p b")
                     pore_dt = pyedt.jit_edt_cpu(padded_mask, scale=voxel_size, sqrt_result=True)
                     s_offset = np.array([a.start for a in s], dtype=np.float64)
                     p_label[pore] = pore_i
                     p_coords_cm[pore, :] = (center_of_mass(pore_im) + s_offset) * np.array(voxel_size)
-                    temp = np.vstack(np.where(pore_dt == pore_dt.max()))[:, 0]
-                    p_coords_dt[pore, :] = (temp + s_offset) * np.array(voxel_size)
+                    max_dt_coords_local = _get_max_coords(pore_dt)
+                    max_pore_dt_local = max_dt_coords_local[-1]
+                    max_dt_coords_local = max_dt_coords_local[:-1]
+                    p_coords_dt[pore, :] = (max_dt_coords_local + s_offset) * np.array(voxel_size)
                     p_phase[pore] = (phases[s]*pore_im).max()
                     if porosity_map is not None:
                         p_porosity[pore] = ((porosity_map[s]*pore_im).sum() / pore_im.sum()) / 100
                     else:
                         p_porosity[pore] = 1.
-                    if pore >= test_pore: print(self_id, pore, "p c")
-                    if pore >= test_pore: mc_debug = False #debugging line, TODO: remove
-                    else: mc_debug = False #debugging line, TODO: remove
+                    #if pore >= test_pore: print(self_id, pore, "p c")
+                    #if pore >= test_pore: mc_debug = False #debugging line, TODO: remove
+                    #else: mc_debug = False #debugging line, TODO: remove
+
                     p_area_surf[pore], p_volume[pore] = jit_marching_cubes_area_and_volume(
                         sub_im, 
                         target_label = pore_i, 
@@ -805,43 +856,45 @@ def _jit_regions_to_network_parallel(
                         template_volumes=template_volumes,
                         debug=mc_debug, #debugging line, TODO: remove
                     )
-                    if pore >= test_pore: print(self_id, pore, "p f")
-                    temp = np.vstack(np.where(sub_dt == sub_dt.max()))[:, 0]
-                    p_coords_dt_global[pore, :] = (temp + s_offset) * np.array(voxel_size)
-                    p_dia_local[pore] = 2*np.amax(pore_dt)
-                    p_dia_global[pore] = 2*np.amax(sub_dt)
-                    if pore >= test_pore: print(self_id, pore, "p d")
-                    im_w_throats, Pn, inscribed_diameter, areas, perimeters, centers = _get_throats(pore_im, sub_im, sub_dt, voxel_size)
-                    if pore >= test_pore: print("Pore: ", pore, " Pn: ", Pn)
+                    #if pore >= test_pore: print(self_id, pore, "p f")
+                    max_dt_coords = _get_max_coords(sub_dt)
+                    max_pore_dt = max_dt_coords[-1]
+                    max_dt_coords = max_dt_coords[:-1]
+                    p_coords_dt_global[pore, :] = (max_dt_coords + s_offset) * np.array(voxel_size)
+                    p_dia_local[pore] = 2*max_pore_dt_local
+                    p_dia_global[pore] = 2*max_pore_dt
+                    #if pore >= test_pore: print(self_id, pore, "p d")
+                    Pn, inscribed_diameter, areas, perimeters, centers = _get_throats(pore_im, sub_im, sub_dt, voxel_size)
+                    #if pore >= test_pore: print("Pore: ", pore, " Pn: ", Pn)
                     for j in Pn:
                         if j > pore:
 
-                            if pore >= test_pore: print(self_id, pore, j, "a")
+                            #if pore >= test_pore: print(self_id, pore, j, "a")
                             partial_t_conns_0[self_id].append(pore)
-                            if pore == test_pore: print(self_id, pore, j, "b")
+                            #if pore == test_pore: print(self_id, pore, j, "b")
                             partial_t_conns_1[self_id].append(j)
-                            if pore == test_pore: print(self_id, pore, j, "c")
+                            #if pore == test_pore: print(self_id, pore, j, "c")
                             partial_t_dia_inscribed[self_id].append(inscribed_diameter[j])
-                            if pore == test_pore: print(self_id, pore, j, "d")
+                            #if pore == test_pore: print(self_id, pore, j, "d")
                             partial_t_perimeter[self_id].append(perimeters[j])
-                            if pore == test_pore: print(self_id, pore, j, "e")
+                            #if pore == test_pore: print(self_id, pore, j, "e")
                             partial_t_area[self_id].append(areas[j])
-                            if pore == test_pore: print(self_id, pore, j, "f")
-                            partial_t_coords_0[self_id].append(centers[j][0])
-                            if pore == test_pore: print(self_id, pore, j, "g")
-                            partial_t_coords_1[self_id].append(centers[j][1])
-                            if pore == test_pore: print(self_id, pore, j, "h")
-                            partial_t_coords_2[self_id].append(centers[j][2])
-                            if pore == test_pore: print(self_id, pore, j, "i")
+                            #if pore == test_pore: print(self_id, pore, j, "f")
+                            partial_t_coords_0[self_id].append(centers[j][0] + s_offset[0])
+                            #if pore == test_pore: print(self_id, pore, j, "g")
+                            partial_t_coords_1[self_id].append(centers[j][1] + s_offset[1])
+                            #if pore == test_pore: print(self_id, pore, j, "h")
+                            partial_t_coords_2[self_id].append(centers[j][2] + s_offset[2])
+                            #if pore == test_pore: print(self_id, pore, j, "i")
 
                     
                     worker_status[self_id] = DONE
 
                 elif status == FINISHED:
-                    print("worker ", self_id, " is finished")
+                    #print("worker ", self_id, " is finished")
                     break
 
-    print("finished main loop")
+    #print("finished main loop")
     # Clean up values
     Nt = len(t_conns_0)  # Get number of throats
 
@@ -895,24 +948,24 @@ def _jit_regions_to_network_parallel(
     net_float['throat.global_peak_2'] = t_coords_2_arr
     net_float['pore.inscribed_diameter'] = np.copy(p_dia_local)
     net_float['pore.extended_diameter'] = np.copy(p_dia_global)
-    net_float['throat.inscribed_diameter'] = np.array(t_dia_inscribed, dtype=np.float64)
+    net_float['throat.inscribed_diameter'] = np.array(t_dia_inscribed, dtype=np.float64) * 2.
     P1 = net_int['throat.conns_0']
     P2 = net_int['throat.conns_1']
     PT1 = np.sqrt(
-                    (net_float['pore.local_peak_0'][P1]-t_coords_0_arr)**2
-                  + (net_float['pore.local_peak_1'][P1]-t_coords_1_arr)**2
-                  + (net_float['pore.local_peak_2'][P1]-t_coords_2_arr)**2
+                    (net_float['pore.global_peak_0'][P1]-t_coords_0_arr)**2
+                  + (net_float['pore.global_peak_1'][P1]-t_coords_1_arr)**2
+                  + (net_float['pore.global_peak_2'][P1]-t_coords_2_arr)**2
             )
     PT2 = np.sqrt(
-                    (net_float['pore.local_peak_0'][P2]-t_coords_0_arr)**2
-                  + (net_float['pore.local_peak_1'][P2]-t_coords_1_arr)**2
-                  + (net_float['pore.local_peak_2'][P2]-t_coords_2_arr)**2
+                    (net_float['pore.global_peak_0'][P2]-t_coords_0_arr)**2
+                  + (net_float['pore.global_peak_1'][P2]-t_coords_1_arr)**2
+                  + (net_float['pore.global_peak_2'][P2]-t_coords_2_arr)**2
             )
     net_float['throat.total_length'] = PT1 + PT2
     dist = np.sqrt(
-                    (net_float['pore.local_peak_0'][P1]-net_float['pore.local_peak_0'][P2])**2
-                  + (net_float['pore.local_peak_1'][P1]-net_float['pore.local_peak_1'][P2])**2
-                  + (net_float['pore.local_peak_2'][P1]-net_float['pore.local_peak_2'][P2])**2
+                    (net_float['pore.global_peak_0'][P1]-net_float['pore.global_peak_0'][P2])**2
+                  + (net_float['pore.global_peak_1'][P1]-net_float['pore.global_peak_1'][P2])**2
+                  + (net_float['pore.global_peak_2'][P1]-net_float['pore.global_peak_2'][P2])**2
             )
     net_float['throat.direct_length'] = dist
     net_float['throat.perimeter'] = np.array(t_perimeter)
@@ -928,4 +981,27 @@ def _jit_regions_to_network_parallel(
 
     return net_float
 
+@njit
+def _jit_regions_to_network(
+    im, 
+    dt,
+    flat_slices,
+    template_areas,
+    template_volumes,
+    phases, 
+    voxel_size, 
+    porosity_map,
+    threads,
+    ):
 
+    return _jit_regions_to_network_parallel(
+        im=im, 
+        dt=dt,
+        flat_slices=flat_slices,
+        template_areas=template_areas,
+        template_volumes=template_volumes,
+        phases=phases, 
+        voxel_size=voxel_size, 
+        porosity_map=porosity_map,
+        threads=threads,
+    )
