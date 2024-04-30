@@ -311,6 +311,7 @@ def lateral_columns_generator(axis):
 def _get_max_coords(im):
     w, h, d = im.shape
     coords = np.zeros(4, dtype=np.float64)
+    coords[3] = np.float64(im[0, 0, 0])
     curr_val = 0.
     max_count = 1
     for x in range(w):
@@ -322,6 +323,7 @@ def _get_max_coords(im):
                     coords[0] = np.float64(x)
                     coords[1] = np.float64(y)
                     coords[2] = np.float64(z)
+                    coords[3] = np.float64(new_val)
                     max_count = 1
                 elif new_val == curr_val:
                     max_count += 1
@@ -952,20 +954,20 @@ def _jit_regions_to_network_parallel(
     P1 = net_int['throat.conns_0']
     P2 = net_int['throat.conns_1']
     PT1 = np.sqrt(
-                    (net_float['pore.global_peak_0'][P1]-t_coords_0_arr)**2
-                  + (net_float['pore.global_peak_1'][P1]-t_coords_1_arr)**2
-                  + (net_float['pore.global_peak_2'][P1]-t_coords_2_arr)**2
+                    (net_float['pore.local_peak_0'][P1]-t_coords_0_arr)**2
+                  + (net_float['pore.local_peak_1'][P1]-t_coords_1_arr)**2
+                  + (net_float['pore.local_peak_2'][P1]-t_coords_2_arr)**2
             )
     PT2 = np.sqrt(
-                    (net_float['pore.global_peak_0'][P2]-t_coords_0_arr)**2
-                  + (net_float['pore.global_peak_1'][P2]-t_coords_1_arr)**2
-                  + (net_float['pore.global_peak_2'][P2]-t_coords_2_arr)**2
+                    (net_float['pore.local_peak_0'][P2]-t_coords_0_arr)**2
+                  + (net_float['pore.local_peak_1'][P2]-t_coords_1_arr)**2
+                  + (net_float['pore.local_peak_2'][P2]-t_coords_2_arr)**2
             )
     net_float['throat.total_length'] = PT1 + PT2
     dist = np.sqrt(
-                    (net_float['pore.global_peak_0'][P1]-net_float['pore.global_peak_0'][P2])**2
-                  + (net_float['pore.global_peak_1'][P1]-net_float['pore.global_peak_1'][P2])**2
-                  + (net_float['pore.global_peak_2'][P1]-net_float['pore.global_peak_2'][P2])**2
+                    (net_float['pore.local_peak_0'][P1]-net_float['pore.local_peak_0'][P2])**2
+                  + (net_float['pore.local_peak_1'][P1]-net_float['pore.local_peak_1'][P2])**2
+                  + (net_float['pore.local_peak_2'][P1]-net_float['pore.local_peak_2'][P2])**2
             )
     net_float['throat.direct_length'] = dist
     net_float['throat.perimeter'] = np.array(t_perimeter)
