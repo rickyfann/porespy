@@ -93,6 +93,6 @@ def jit_marching_squares_perimeter_and_area(
                 total_perimeter += perimeters[TEMPLATE_PERIMETER[template]]
                 total_area += complete_area * TEMPLATE_AREA[template]
 
-    return total_perimeter, total_area
+    return total_perimeter/2, total_area
 
 

@@ -401,8 +401,9 @@ def _get_throats(pore_im, sub_im, sub_dt, voxel_size):
                                 )
                         
                         # get pseudo-projection
-                        projection = np.zeros((3, 3), dtype=np.uint8)
-                        projection[1, 1] = 1
+                        # projection = np.zeros((3, 3), dtype=np.uint8)
+                        # projection[1, 1] = 1
+                        projection = np.ones((3, 3), dtype=np.uint8)
 
                         for dx2, dy2, dz2, px, py in lateral_columns_generator(ax):
                             x3 = x2 + dx2
@@ -417,10 +418,14 @@ def _get_throats(pore_im, sub_im, sub_dt, voxel_size):
                                 (z3 >= d)
                                 ): continue
 
+                            """
                             if sub_im[x3, y3, z3] != (val + 1):
                                 pass
                             elif _is_throat(pore_im, x3, y3, z3):
                                 projection[px, py] = 1
+                            """
+                            if sub_im[x3, y3, z3] == 0:
+                                projection[px, py] = 0
                         if ax == 0:
                             projection_size = (voxel_size[1], voxel_size[2])
                         elif ax == 1:
@@ -954,20 +959,20 @@ def _jit_regions_to_network_parallel(
     P1 = net_int['throat.conns_0']
     P2 = net_int['throat.conns_1']
     PT1 = np.sqrt(
-                    (net_float['pore.local_peak_0'][P1]-t_coords_0_arr)**2
-                  + (net_float['pore.local_peak_1'][P1]-t_coords_1_arr)**2
-                  + (net_float['pore.local_peak_2'][P1]-t_coords_2_arr)**2
+                    (net_float['pore.coords_0'][P1]-t_coords_0_arr)**2
+                  + (net_float['pore.coords_1'][P1]-t_coords_1_arr)**2
+                  + (net_float['pore.coords_2'][P1]-t_coords_2_arr)**2
             )
     PT2 = np.sqrt(
-                    (net_float['pore.local_peak_0'][P2]-t_coords_0_arr)**2
-                  + (net_float['pore.local_peak_1'][P2]-t_coords_1_arr)**2
-                  + (net_float['pore.local_peak_2'][P2]-t_coords_2_arr)**2
+                    (net_float['pore.coords_0'][P2]-t_coords_0_arr)**2
+                  + (net_float['pore.coords_1'][P2]-t_coords_1_arr)**2
+                  + (net_float['pore.coords_2'][P2]-t_coords_2_arr)**2
             )
     net_float['throat.total_length'] = PT1 + PT2
     dist = np.sqrt(
-                    (net_float['pore.local_peak_0'][P1]-net_float['pore.local_peak_0'][P2])**2
-                  + (net_float['pore.local_peak_1'][P1]-net_float['pore.local_peak_1'][P2])**2
-                  + (net_float['pore.local_peak_2'][P1]-net_float['pore.local_peak_2'][P2])**2
+                    (net_float['pore.coords_0'][P1]-net_float['pore.coords_0'][P2])**2
+                  + (net_float['pore.coords_1'][P1]-net_float['pore.coords_1'][P2])**2
+                  + (net_float['pore.coords_2'][P1]-net_float['pore.coords_2'][P2])**2
             )
     net_float['throat.direct_length'] = dist
     net_float['throat.perimeter'] = np.array(t_perimeter)

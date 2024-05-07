@@ -249,4 +249,4 @@ def jit_marching_cubes_area_and_volume(
         debug=debug,
     )
 
-    return area, volume
+    return area/2, volume
