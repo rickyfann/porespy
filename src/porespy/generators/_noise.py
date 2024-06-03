@@ -1,5 +1,5 @@
 import numpy as np
-from porespy.tools import norm_to_uniform
+from porespy.tools import all_to_uniform
 import psutil
 from typing import Literal
 
@@ -99,5 +99,5 @@ def fractal_noise(
     perlin.seed = seed
     result = perlin.genAsGrid(shape)
     if uniform:
-        result = norm_to_uniform(result, scale=[0, 1])
+        result = all_to_uniform(result, scale=[0, 1])
     return result

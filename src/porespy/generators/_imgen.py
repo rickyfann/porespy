@@ -8,7 +8,7 @@ import scipy.spatial as sptl
 import scipy.ndimage as spim
 import scipy.stats as spst
 from deprecated import deprecated
-from porespy.tools import norm_to_uniform, ps_ball, ps_disk, get_border, ps_round
+from porespy.tools import all_to_uniform, ps_ball, ps_disk, get_border, ps_round
 from porespy.tools import extract_subsection
 from porespy.tools import insert_sphere
 from porespy.tools import _insert_disk_at_points, _insert_disk_at_points_parallel
@@ -1001,7 +1001,7 @@ def blobs(
 
     See Also
     --------
-    norm_to_uniform
+    all_to_uniform
 
     Notes
     -----
@@ -1045,7 +1045,7 @@ def blobs(
                                      divs=divs, overlap=overlap)
     else:
         im = spim.gaussian_filter(im, sigma=sigma)
-    im = norm_to_uniform(im, scale=[0, 1])
+    im = all_to_uniform(im, scale=[0, 1])
     if porosity:
         im = im < porosity
     return im
