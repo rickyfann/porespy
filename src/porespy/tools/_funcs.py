@@ -962,8 +962,7 @@ def all_to_uniform(im, scale=None):
     """
     if scale is None:
         scale = [im.min(), im.max()]
-    argsort_im = np.argsort(im.flatten())
-    aargsort_im = np.argsort(argsort_im)  # twice to get the inverse permutation
+    aargsort_im = np.argsort(np.argsort(im.flatten())) # twice for the inverse permutation
     linspace_im = np.linspace(scale[0], scale[1], len(aargsort_im), endpoint=True)
     uniform_flatten_im = linspace_im[aargsort_im]
     im = np.reshape(uniform_flatten_im, im.shape)
