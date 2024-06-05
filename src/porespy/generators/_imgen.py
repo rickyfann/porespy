@@ -1,7 +1,7 @@
 import logging
 import numpy as np
 import inspect as insp
-import pyedt
+from pyedt import edt
 import porespy as ps
 from numba import njit
 import scipy.spatial as sptl
@@ -118,7 +118,7 @@ def cylindrical_plug(shape, r=None, axis=2):
     if len(shape) == 3:
         im2d = np.ones(shape=shape[axes])
         im2d[int(shape[axes[0]]/2), int(shape[axes[1]]/2)] = 0
-        dt = pyedt.edt(im2d)
+        dt = edt(im2d)
         if r is None:
             r = int(min(shape[axes])/2)
         circ = dt < r
@@ -129,7 +129,7 @@ def cylindrical_plug(shape, r=None, axis=2):
     if len(shape) == 2:
         im2d = np.ones(shape=shape)
         im2d[int(shape[0]/2), int(shape[1]/2)] = 0
-        dt = pyedt.edt(im2d)
+        dt = edt(im2d)
         if r is None:
             r = int(min(shape[axes])/2)
         cyl = dt < r
@@ -682,7 +682,7 @@ def voronoi_edges(
             line_pts = line_segment(pts[0], pts[1])
             im[tuple(line_pts)] = True
     im = extract_subsection(im=im, shape=shape)
-    im = pyedt.edt(~im) > r**2
+    im = edt(~im) > r**2
     return im
 
 
@@ -856,9 +856,9 @@ def lattice_spheres(
            offset[1]+int(spacing[1]/2)::spacing[1],
            offset[2]+int(spacing[2]/2)::spacing[2]] = True
     if smooth:
-        im = ~(pyedt.edt(~im) < r**2)
+        im = ~(edt(~im) < r**2)
     else:
-        im = ~(pyedt.edt(~im) <= r**2)
+        im = ~(edt(~im) <= r**2)
     return im
 
 
@@ -925,7 +925,7 @@ def overlapping_spheres(
 
     # Helper functions for calculating porosity: phi = g(f(N))
     def f(N):
-        return pyedt.edt(im > N / bulk_vol) < r**2
+        return edt(im > N / bulk_vol) < r**2
 
     def g(im):
         r"""Returns fraction of 0s, given a binary image"""

@@ -9,7 +9,7 @@ from porespy.filters import reduce_peaks
 from porespy.networks import generate_voxel_image
 from porespy.tools import sanitize_filename
 from pyevtk.hl import imageToVTK
-import pyedt
+from pyedt import edt
 
 
 def dict_to_vtk(data, filename, voxel_size=1, origin=(0, 0, 0)):
@@ -159,7 +159,7 @@ def to_palabos(im, filename, solid=0):
     bin_im = bin_im.astype(int)
     # Distance Transform computes Euclidean distance in lattice units to
     # Nearest fluid for every solid voxel
-    dt = pyedt.edt(bin_im)
+    dt = edt(bin_im)
     dt[dt > 2] = 2
     dt[(dt > 0) * (dt <= 2)] = 1
     dt = np.sqrt(dt).astype(int)
@@ -536,7 +536,7 @@ def spheres_to_comsol(filename, im=None, centers=None, radii=None):
     if im is not None:
         if im.ndim != 3:
             raise Exception('Image must be 3D.')
-        dt = np.sqrt(pyedt.edt(im > 0))
+        dt = np.sqrt(edt(im > 0))
         dt2 = nd.gaussian_filter(dt, sigma=0.1)
         peaks = (im > 0)*(nd.maximum_filter(dt2, footprint=ball(3)) == dt)
         peaks = reduce_peaks(peaks)

@@ -1,5 +1,5 @@
 import numpy as np
-import pyedt
+from pyedt import edt
 from porespy.tools import get_tqdm
 from porespy.tools import get_border, make_contiguous
 from porespy.tools import _insert_disk_at_points
@@ -62,7 +62,7 @@ def ibip(im, inlets=None, dt=None, maxiter=10000):
         inlets = get_border(shape=im.shape, mode='faces')
     bd = np.copy(inlets > 0)
     if dt is None:  # Find dt if not given
-        dt = np.sqrt(pyedt.edt(im))
+        dt = np.sqrt(edt(im))
     dt = dt.astype(int)  # Conert the dt to nearest integer
     # Initialize inv image with -1 in the solid, and 0's in the void
     inv = -1*(~im)

@@ -1,6 +1,6 @@
 import logging
 import numpy as np
-import pyedt
+from pyedt import edt
 from porespy.networks import regions_to_network
 from porespy.networks import add_boundary_regions
 from porespy.networks import label_phases, label_boundaries
@@ -31,7 +31,7 @@ def estimate_overlap_and_chunk(im):
             im = im.swapaxes(i, 0)
 
     chunk_shape = (np.array(shape) / np.array(divs)).astype(int)
-    dt = np.sqrt(pyedt.edt((im > 0)))
+    dt = np.sqrt(edt((im > 0)))
     overlap = dt.max()
 
     return overlap, chunk_shape
@@ -221,10 +221,10 @@ def snow2(phases,
             porosity_map = np.pad(porosity_map, pad_width=boundary_width, mode='edge')
     # Perform actual extractcion on all regions
     net = regions_to_network(
-        regions, 
-        phases=phases, 
-        accuracy=accuracy, 
-        voxel_size=voxel_size, 
+        regions,
+        phases=phases,
+        accuracy=accuracy,
+        voxel_size=voxel_size,
         porosity_map=porosity_map,
     )
     # If image is multiphase, label pores/throats accordingly

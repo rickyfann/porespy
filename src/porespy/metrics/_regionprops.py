@@ -11,7 +11,7 @@ from skimage.morphology import skeletonize_3d, ball
 from skimage.measure import regionprops
 from skimage.measure._regionprops import RegionProperties
 from pandas import DataFrame
-import pyedt
+from pyedt import edt
 from loguru import logger
 
 
@@ -255,14 +255,14 @@ class RegionPropertiesPS(RegionProperties):
     def dt(self):
         mask = self.mask
         mask_padded = np.pad(mask, pad_width=1, mode='constant')
-        temp = np.sqrt(pyedt.edt(mask_padded))
+        temp = np.sqrt(edt(mask_padded))
         return extract_subsection(temp, shape=mask.shape)
 
     @property
     def inscribed_sphere(self):
         dt = self.dt
         r = dt.max()
-        inv_dt = np.sqrt(pyedt.edt(dt < r))
+        inv_dt = np.sqrt(edt(dt < r))
         return inv_dt < r
 
     @property

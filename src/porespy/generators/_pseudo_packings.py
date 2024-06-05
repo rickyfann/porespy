@@ -3,7 +3,7 @@ import heapq
 import numpy as np
 import scipy.ndimage as spim
 import numpy.typing as npt
-import pyedt as edt
+from pyedt import edt
 from skimage.morphology import disk, ball
 from porespy import settings
 from porespy.tools import get_tqdm, ps_round, get_border, unpad

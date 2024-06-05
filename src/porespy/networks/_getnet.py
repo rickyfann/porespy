@@ -7,7 +7,7 @@ from numba.core import types
 import numba
 import scipy.ndimage as spim
 from skimage.morphology import disk, ball
-import pyedt
+from pyedt import edt, jit_edt_cpu
 from porespy.tools import extend_slice, jit_extend_slice, center_of_mass
 from porespy import settings
 from porespy.tools import (
@@ -207,7 +207,7 @@ def regions_to_network(
     if im.size != phases.size:
         raise Exception('regions and phase are different sizes, probably ' +
                         'because boundary regions were not added to phases')
-    dt = np.sqrt(pyedt.edt(phases >= 1, scale=voxel_size))
+    dt = np.sqrt(edt(phases >= 1, scale=voxel_size))
 
     # Get 'slices' into im for each pore region
     slices = spim.find_objects(im)
@@ -596,7 +596,7 @@ def _jit_regions_to_network_parallel(
                     sub_dt = dt[s]
                     pore_im = sub_im == pore_i
                     padded_mask = pad(pore_im)
-                    pore_dt = pyedt.jit_edt_cpu(padded_mask, scale=voxel_size, sqrt_result=True)
+                    pore_dt = jit_edt_cpu(padded_mask, scale=voxel_size, sqrt_result=True)
                     s_offset = np.array([a.start for a in s], dtype=np.float64)
                     p_label[pore] = pore_i
                     p_coords_cm[pore, :] = (center_of_mass(pore_im) + s_offset) * np.array(voxel_size)
