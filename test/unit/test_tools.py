@@ -429,16 +429,32 @@ class ToolsTest():
         assert t > 1
 
     def test_points_to_spheres_3D(self):
-        im=np.full((41,41,41),0)
-        im[20,20,20]=10
-        res_ps_3D=ps.tools.points_to_spheres(im=im)
+        im = np.full((41, 41, 41), 0)
+        im[20, 20, 20] = 10
+        res_ps_3D = ps.tools.points_to_spheres(im=im)
         assert np.sum(res_ps_3D) == 4169
-        
+
     def test_points_to_spheres_2D(self):
-        im=np.full((41,41),0)
-        im[20,20]=10
-        res_ps_2D=ps.tools.points_to_spheres(im=im)
+        im = np.full((41, 41), 0)
+        im[20, 20] = 10
+        res_ps_2D = ps.tools.points_to_spheres(im=im)
         assert np.sum(res_ps_2D) == 317
+
+    def test_points_to_spheres_bool_2D(self):
+        im1 = ps.generators.lattice_spheres(
+            shape=[101, 101], r=1, spacing=20, offset=10)
+        im2 = ps.generators.lattice_spheres(
+            shape=[101, 101], r=10, spacing=20, offset=10, smooth=False)
+        im3 = ~ps.tools.points_to_spheres(im=~im1)
+        assert np.all(im2 == im3)
+
+    def test_points_to_spheres_bool_3D(self):
+        im1 = ps.generators.lattice_spheres(
+            shape=[101, 101, 101], r=1, spacing=20, offset=10)
+        im2 = ps.generators.lattice_spheres(
+            shape=[101, 101, 101], r=10, spacing=20, offset=10, smooth=False)
+        im3 = ~ps.tools.points_to_spheres(im=~im1)
+        assert np.all(im2 == im3)
 
 
 if __name__ == '__main__':
