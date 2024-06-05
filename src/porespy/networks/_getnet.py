@@ -11,8 +11,8 @@ import pyedt
 from porespy.tools import extend_slice, jit_extend_slice, center_of_mass
 from porespy import settings
 from porespy.tools import (
-    get_tqdm, 
-    make_contiguous, 
+    get_tqdm,
+    make_contiguous,
     jit_marching_cubes_area_and_volume,
     jit_marching_squares_perimeter_and_area,
     create_mc_template_list,
@@ -34,6 +34,7 @@ INT_TYPE = numba.types.int64[:]
 
 __all__ = [
     "regions_to_network",
+    "_jit_regions_to_network",
 ]
 
 
@@ -80,10 +81,10 @@ def calculate_throat_perimeter(vx, sub_dt, voxel_size):
     return t_perimeter_loc
 
 def regions_to_network(
-    regions, 
-    phases=None, 
-    voxel_size=(1, 1, 1), 
-    accuracy='standard', 
+    regions,
+    phases=None,
+    voxel_size=(1, 1, 1),
+    accuracy='standard',
     porosity_map=None,
     threads=None,
 ):
@@ -215,13 +216,13 @@ def regions_to_network(
         flat_slices.extend(sl)
 
     net = _jit_regions_to_network(
-        im=im, 
+        im=im,
         dt=dt,
         flat_slices=flat_slices,
         template_areas=template_areas,
         template_volumes=template_volumes,
-        phases=phases, 
-        voxel_size=voxel_size, 
+        phases=phases,
+        voxel_size=voxel_size,
         porosity_map=porosity_map,
         threads=threads,
     )
@@ -375,11 +376,11 @@ def _get_throats(pore_im, sub_im, sub_dt, voxel_size, throat_perimeter_mode="ori
                         dt = sub_dt[x2, y2, z2]
                         if val in list(inscribed_diameters.keys()):
                             last_diameter = inscribed_diameters[val]
-                            if dt > last_diameter: 
+                            if dt > last_diameter:
                                 val_count[val] = 1
                                 inscribed_diameters[val] = dt
                                 centers[val] = (
-                                    (x2) * voxel_size[0], 
+                                    (x2) * voxel_size[0],
                                     (y2) * voxel_size[1],
                                     (z2) * voxel_size[2],
                                     )
@@ -387,7 +388,7 @@ def _get_throats(pore_im, sub_im, sub_dt, voxel_size, throat_perimeter_mode="ori
                                 val_count[val] += 1
                                 n = val_count[val]
                                 centers[val] = (
-                                    ((n-1) * centers[val][0]) / n + ((x2) * voxel_size[0]) / n, 
+                                    ((n-1) * centers[val][0]) / n + ((x2) * voxel_size[0]) / n,
                                     ((n-1) * centers[val][1]) / n + ((y2) * voxel_size[1]) / n,
                                     ((n-1) * centers[val][2]) / n + ((z2) * voxel_size[2]) / n,
                                     )
@@ -395,11 +396,11 @@ def _get_throats(pore_im, sub_im, sub_dt, voxel_size, throat_perimeter_mode="ori
                             inscribed_diameters[val] = dt
                             val_count[val] = 1
                             centers[val] = (
-                                (x2) * voxel_size[0], 
+                                (x2) * voxel_size[0],
                                 (y2) * voxel_size[1],
                                 (z2) * voxel_size[2],
                                 )
-                        
+
                         # get pseudo-projection
                         if throat_perimeter_mode == "original":
                             projection = np.ones((3, 3), dtype=np.uint8)
@@ -428,8 +429,8 @@ def _get_throats(pore_im, sub_im, sub_dt, voxel_size, throat_perimeter_mode="ori
                                     pass
                                 elif _is_throat(pore_im, x3, y3, z3):
                                     projection[px, py] = 1
-                            
-                           
+
+
                         if ax == 0:
                             projection_size = (voxel_size[1], voxel_size[2])
                         elif ax == 1:
@@ -437,7 +438,7 @@ def _get_throats(pore_im, sub_im, sub_dt, voxel_size, throat_perimeter_mode="ori
                         elif ax == 2:
                             projection_size = (voxel_size[0], voxel_size[1])
                         perimeter, area = jit_marching_squares_perimeter_and_area(
-                            projection, 
+                            projection,
                             target_label=1,
                             spacing=projection_size,
                             overlap=True,
@@ -453,24 +454,24 @@ def _get_throats(pore_im, sub_im, sub_dt, voxel_size, throat_perimeter_mode="ori
                         else:
                             areas[val] = area
 
-    return( 
-        list(conns), 
+    return(
+        list(conns),
         inscribed_diameters,
         areas,
         perimeters,
         centers,
         )
-                    
+
 
 @njit(parallel=True, debug=False)
 def _jit_regions_to_network_parallel(
-    im, 
+    im,
     dt,
     flat_slices,
     template_areas,
     template_volumes,
-    phases, 
-    voxel_size, 
+    phases,
+    voxel_size,
     porosity_map,
     threads,
 ):
@@ -483,7 +484,7 @@ def _jit_regions_to_network_parallel(
             flat_slices[i+2],
         ))
     mc_debug=False
-    
+
     # Initialize arrays
     Ps = np.arange(1, np.amax(im)+1)
     Np = np.int64(Ps.size)
@@ -539,7 +540,7 @@ def _jit_regions_to_network_parallel(
 
             while True:
                 wait()
-                
+
                 for worker_id in range(len(worker_status)):
                     if worker_status[worker_id] == IDLE:
                         if current_pore <= Np:
@@ -549,7 +550,7 @@ def _jit_regions_to_network_parallel(
                         else:
                             worker_status[worker_id] = FINISHED
                     if worker_status[worker_id] == DONE:
-                        
+
                         for throat_i in range(len(partial_t_conns_0[worker_id])):
                             t_conns_0.append(partial_t_conns_0[worker_id][throat_i])
                             t_conns_1.append(partial_t_conns_1[worker_id][throat_i])
@@ -570,14 +571,14 @@ def _jit_regions_to_network_parallel(
                     break
 
         else:
-            
+
             while True:
-                
+
                 wait()
                 status = worker_status[self_id]
 
                 if status == ASSIGNED:
-                    
+
                     partial_t_conns_0[self_id] = List.empty_list(np.uint64)
                     partial_t_conns_1[self_id] = List.empty_list(np.uint64)
                     partial_t_dia_inscribed[self_id] = List.empty_list(np.float64)
@@ -610,8 +611,8 @@ def _jit_regions_to_network_parallel(
                         p_porosity[pore] = 1.
 
                     p_area_surf[pore], p_volume[pore] = jit_marching_cubes_area_and_volume(
-                        sub_im, 
-                        target_label = pore_i, 
+                        sub_im,
+                        target_label = pore_i,
                         template_areas=template_areas,
                         template_volumes=template_volumes,
                         debug=mc_debug, #debugging line, TODO: remove
@@ -635,7 +636,7 @@ def _jit_regions_to_network_parallel(
                             partial_t_coords_1[self_id].append(centers[j][1] + s_offset[1])
                             partial_t_coords_2[self_id].append(centers[j][2] + s_offset[2])
 
-                    
+
                     worker_status[self_id] = DONE
 
                 elif status == FINISHED:
@@ -651,7 +652,7 @@ def _jit_regions_to_network_parallel(
         key_type=types.unicode_type,
         value_type=FLOAT_TYPE,
     )
-    
+
     net_int = Dict.empty(
         key_type=types.unicode_type,
         value_type=INT_TYPE,
@@ -728,25 +729,25 @@ def _jit_regions_to_network_parallel(
 
 @njit
 def _jit_regions_to_network(
-    im, 
+    im,
     dt,
     flat_slices,
     template_areas,
     template_volumes,
-    phases, 
-    voxel_size, 
+    phases,
+    voxel_size,
     porosity_map,
     threads,
     ):
 
     return _jit_regions_to_network_parallel(
-        im=im, 
+        im=im,
         dt=dt,
         flat_slices=flat_slices,
         template_areas=template_areas,
         template_volumes=template_volumes,
-        phases=phases, 
-        voxel_size=voxel_size, 
+        phases=phases,
+        voxel_size=voxel_size,
         porosity_map=porosity_map,
         threads=threads,
     )
