@@ -4,7 +4,12 @@ from scipy import stats as spst
 import scipy.ndimage as spim
 import porespy as ps
 import openpnm as op
-import pyedt
+try:
+    from pyedt import edt
+except ModuleNotFoundError:
+    from edt import edt
+
+
 ws = op.Workspace()
 ws.settings['loglevel'] = 50
 ps.settings.tqdm['disable'] = True
@@ -195,7 +200,7 @@ class Snow2Test:
         im = ps.generators.blobs(shape=[400, 400],
                                  blobiness=[2, 1],
                                  porosity=0.6)
-        dt = np.sqrt(pyedt.edt(im))
+        dt = np.sqrt(edt(im))
         peaks1 = ps.filters.find_peaks(dt=dt, r_max=4)
         peaks2 = ps.filters.trim_saddle_points(peaks=peaks1, dt=dt)
         assert (peaks1 > 0).sum() > (peaks2 > 0).sum()
@@ -206,7 +211,7 @@ class Snow2Test:
         im = ps.generators.blobs(shape=[400, 400],
                                  blobiness=[2, 1],
                                  porosity=0.6)
-        dt = np.sqrt(pyedt.edt(im))
+        dt = np.sqrt(edt(im))
         peaks1 = ps.filters.find_peaks(dt=dt, r_max=4)
         peaks2 = ps.filters.trim_saddle_points_legacy(peaks=peaks1, dt=dt)
         assert (peaks1 > 0).sum() > (peaks2 > 0).sum()

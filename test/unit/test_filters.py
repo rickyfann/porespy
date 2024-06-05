@@ -1,11 +1,16 @@
 import pytest
 import numpy as np
-import pyedt
 import porespy as ps
 import scipy.ndimage as spim
 from skimage.morphology import disk, ball, skeletonize_3d
 from skimage.util import random_noise
 from scipy.stats import norm
+try:
+    from pyedt import edt
+except ModuleNotFoundError:
+    from edt import edt
+
+
 ps.settings.tqdm['disable'] = True
 
 
@@ -15,7 +20,7 @@ class FilterTest():
         self.im = ps.generators.blobs(shape=[100, 100, 100], blobiness=2)
         # Ensure that im was generated as expeccted
         assert ps.metrics.porosity(self.im) == 0.499829
-        self.im_dt = np.sqrt(pyedt.edt(self.im))
+        self.im_dt = np.sqrt(edt(self.im))
 
     def test_im_in_not_im_out(self):
         im = self.im[:, :, 50]

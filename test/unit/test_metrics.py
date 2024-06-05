@@ -3,11 +3,16 @@ import pytest
 import numpy as np
 import porespy as ps
 from skimage import io
-import pyedt
 from pathlib import Path
 import scipy.ndimage as spim
 from skimage.morphology import ball
 from numpy.testing import assert_allclose
+try:
+    from pyedt import edt
+except ModuleNotFoundError:
+    from edt import edt
+
+
 ps.settings.tqdm['disable'] = True
 
 
@@ -79,7 +84,7 @@ class MetricsTest():
         assert (np.mean(rev.porosity) - 0.5)**2 < 0.05
 
     def test_radial_density(self):
-        dt = np.sqrt(pyedt.edt(self.blobs))
+        dt = np.sqrt(edt(self.blobs))
         den = ps.metrics.radial_density_distribution(dt)
         assert den.cdf.max() == 1
 

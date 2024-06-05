@@ -2,7 +2,12 @@ import numpy as np
 import porespy as ps
 import scipy.ndimage as spim
 from skimage.morphology import square
-import pyedt
+try:
+    from pyedt import edt
+except ModuleNotFoundError:
+    from edt import edt
+
+
 ps.settings.tqdm['disable'] = True
 
 
@@ -102,7 +107,7 @@ class IBIPTest():
 
     def test_compare_size_and_seq_to_satn(self):
         im = ps.generators.blobs(shape=[250, 250])
-        dt = np.sqrt(pyedt.edt(im))
+        dt = np.sqrt(edt(im))
         sizes = np.arange(int(dt.max())+1, 0, -1)
         mio = ps.filters.porosimetry(im, sizes=sizes)
         mio_satn = ps.filters.size_to_satn(size=mio, im=im)

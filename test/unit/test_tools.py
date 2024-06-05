@@ -5,7 +5,12 @@ import scipy.spatial as sptl
 import scipy.ndimage as spim
 import matplotlib.pyplot as plt
 import pytest
-import pyedt
+try:
+    from pyedt import edt
+except ModuleNotFoundError:
+    from edt import edt
+
+
 ps.settings.tqdm['disable'] = True
 
 
