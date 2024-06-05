@@ -1,19 +1,29 @@
 import numpy as np
-import numba
-from pyedt import edt
-from porespy.filters import trim_disconnected_blobs, find_trapped_regions
-from porespy.filters import pc_to_satn, satn_to_seq
 from porespy import settings
-from porespy.tools import _insert_disks_at_points
-from porespy.tools import get_tqdm
-from porespy.tools import Results
 from porespy.metrics import pc_curve
-tqdm = get_tqdm()
+from porespy.tools import (
+    _insert_disks_at_points,
+    get_tqdm,
+    Results,
+)
+from porespy.filters import (
+    trim_disconnected_blobs,
+    find_trapped_regions,
+    pc_to_satn,
+    satn_to_seq,
+)
+try:
+    from pyedt import edt
+except ImportError:
+    from edt import edt
 
 
 __all__ = [
     'drainage',
 ]
+
+
+tqdm = get_tqdm()
 
 
 def drainage(im, voxel_size, pc=None, inlets=None, outlets=None, residual=None,

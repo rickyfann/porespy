@@ -2,7 +2,6 @@ import inspect as insp
 import logging
 import dask
 import numpy as np
-from pyedt import edt
 import operator as op
 import scipy.ndimage as spim
 from deprecated import deprecated
@@ -16,6 +15,10 @@ from porespy.tools import ps_disk, ps_ball, ps_round
 from porespy import settings
 from porespy.tools import get_tqdm
 from typing import Literal
+try:
+    from pyedt import edt
+except ImportError:
+    from edt import edt
 
 
 __all__ = [

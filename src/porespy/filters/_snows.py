@@ -3,7 +3,6 @@ import inspect as insp
 import logging
 import numpy as np
 from numba import njit, prange
-from pyedt import edt
 import scipy.ndimage as spim
 import scipy.spatial as sptl
 from skimage.segmentation import watershed
@@ -14,6 +13,10 @@ from porespy.tools import Results
 from porespy.tools import get_tqdm
 from porespy.filters import chunked_func
 from porespy import settings
+try:
+    from pyedt import edt
+except ImportError:
+    from edt import edt
 
 
 __all__ = [

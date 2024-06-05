@@ -1,11 +1,20 @@
 import logging
 import numpy as np
-from pyedt import edt
-from porespy.networks import regions_to_network
-from porespy.networks import add_boundary_regions
-from porespy.networks import label_phases, label_boundaries
-from porespy.filters import snow_partitioning, snow_partitioning_parallel
 from porespy.tools import Results
+from porespy.networks import (
+    regions_to_network,
+    add_boundary_regions,
+    label_phases,
+    label_boundaries,
+)
+from porespy.filters import (
+    snow_partitioning,
+    snow_partitioning_parallel,
+)
+try:
+    from pyedt import edt
+except ImportError:
+    from edt import edt
 
 
 __all__ = [

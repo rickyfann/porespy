@@ -3,14 +3,22 @@ import heapq
 import numpy as np
 import scipy.ndimage as spim
 import numpy.typing as npt
-from pyedt import edt
-from skimage.morphology import disk, ball
-from porespy import settings
-from porespy.tools import get_tqdm, ps_round, get_border, unpad
-from porespy.tools import _insert_disk_at_point
-from porespy.filters import trim_disconnected_blobs
 from numba import njit
 from typing import Literal, List
+from skimage.morphology import disk, ball
+from porespy import settings
+from porespy.tools import (
+    get_tqdm,
+    ps_round,
+    get_border,
+    unpad,
+    _insert_disk_at_point,
+)
+from porespy.filters import trim_disconnected_blobs
+try:
+    from pyedt import edt
+except ImportError:
+    from edt import edt
 
 
 __all__ = [

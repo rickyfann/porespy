@@ -1,6 +1,5 @@
 import os
 import subprocess
-
 import numpy as np
 import scipy.ndimage as nd
 import skimage.measure as ms
@@ -8,8 +7,10 @@ from skimage.morphology import ball
 from porespy.filters import reduce_peaks
 from porespy.networks import generate_voxel_image
 from porespy.tools import sanitize_filename
-from pyevtk.hl import imageToVTK
-from pyedt import edt
+try:
+    from pyedt import edt
+except ImportError:
+    from edt import edt
 
 
 def dict_to_vtk(data, filename, voxel_size=1, origin=(0, 0, 0)):

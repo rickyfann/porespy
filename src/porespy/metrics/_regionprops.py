@@ -1,18 +1,20 @@
 import logging
 import numpy as np
 import scipy.ndimage as spim
+from pandas import DataFrame
 from porespy.tools import extract_subsection, bbox_to_slices
 from skimage.measure import mesh_surface_area
+from skimage.morphology import skeletonize_3d, ball
+from skimage.measure import regionprops
+from skimage.measure._regionprops import RegionProperties
 try:
     from skimage.measure import marching_cubes
 except ImportError:
     from skimage.measure import marching_cubes_lewiner as marching_cubes
-from skimage.morphology import skeletonize_3d, ball
-from skimage.measure import regionprops
-from skimage.measure._regionprops import RegionProperties
-from pandas import DataFrame
-from pyedt import edt
-from loguru import logger
+try:
+    from pyedt import edt
+except ImportError:
+    from edt import edt
 
 
 __all__ = [

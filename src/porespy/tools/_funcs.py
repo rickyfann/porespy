@@ -1,20 +1,18 @@
 import logging
 import numpy as np
 import scipy.ndimage as spim
-from scipy.special import erfc
-from skimage.segmentation import relabel_sequential
-from pyedt import edt
-from loguru import logger
-from skimage.morphology import ball, disk
 from numba import njit, boolean
-
+from skimage.segmentation import relabel_sequential
+from skimage.morphology import ball, disk
 from ._utils import Results
 try:
     from skimage.measure import marching_cubes
 except ImportError:
     from skimage.measure import marching_cubes_lewiner as marching_cubes
-
-from numba import njit
+try:
+    from pyedt import edt
+except ImportError:
+    from edt import edt
 
 
 logger = logging.getLogger(__name__)
@@ -49,6 +47,8 @@ __all__ = [
     'ps_round',
     'subdivide',
     'unpad',
+    'jit_extend_slice',
+    'pad',
 ]
 
 

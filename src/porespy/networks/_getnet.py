@@ -7,9 +7,12 @@ from numba.core import types
 import numba
 import scipy.ndimage as spim
 from skimage.morphology import disk, ball
-from pyedt import edt, jit_edt_cpu
-from porespy.tools import extend_slice, jit_extend_slice, center_of_mass
 from porespy import settings
+from porespy.tools import (
+    extend_slice,
+    jit_extend_slice,
+    center_of_mass,
+)
 from porespy.tools import (
     get_tqdm,
     make_contiguous,
@@ -19,9 +22,16 @@ from porespy.tools import (
     calculate_area_and_volume,
     pad,
 )
-from porespy.metrics import region_surface_areas, region_interface_areas
-from porespy.metrics import region_volumes
-from loguru import logger
+from porespy.metrics import (
+    region_surface_areas,
+    region_interface_areas,
+    region_volumes,
+)
+try:
+    from pyedt import edt, jit_edt_cpu
+except ImportError:
+    from edt import edt
+
 
 IDLE = np.uint32(0)
 ASSIGNED = np.uint32(1)
@@ -40,6 +50,7 @@ __all__ = [
 
 tqdm = get_tqdm()
 logger = logging.getLogger(__name__)
+
 
 @njit
 def wait():

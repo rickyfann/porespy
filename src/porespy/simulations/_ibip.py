@@ -1,11 +1,19 @@
 import numpy as np
-from pyedt import edt
-from porespy.tools import get_tqdm
-from porespy.tools import get_border, make_contiguous
-from porespy.tools import _insert_disk_at_points
-from porespy.tools import Results
 from numba import njit
 from porespy import settings
+from porespy.tools import (
+    get_tqdm,
+    get_border,
+    make_contiguous,
+    _insert_disk_at_points,
+    Results,
+)
+try:
+    from pyedt import edt
+except ImportError:
+    from edt import edt
+
+
 tqdm = get_tqdm()
 
 
