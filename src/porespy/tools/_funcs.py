@@ -34,7 +34,7 @@ __all__ = [
     'marching_map',
     'make_contiguous',
     'mesh_region',
-    'norm_to_uniform',
+    'all_to_uniform',
     'overlay',
     'randomize_colors',
     'recombine',
@@ -932,15 +932,15 @@ def in_hull(points, hull):
     return hull.find_simplex(points) >= 0
 
 
-def norm_to_uniform(im, scale=None):
+def all_to_uniform(im, scale=None):
     r"""
-    Take an image with normally distributed greyscale values and convert it to
+    Take an image with some distribution of greyscale values and convert it to
     a uniform (i.e. flat) distribution.
 
     Parameters
     ----------
     im : ndarray
-        The image containing the normally distributed scalar field
+        The image with the greyscale values distribution to be converted.
     scale : [low, high]
         A list or array indicating the lower and upper bounds for the new
         randomly distributed data.  The default is ``None``, which uses the
@@ -956,16 +956,16 @@ def norm_to_uniform(im, scale=None):
     Examples
     --------
     `Click here
-    <https://porespy.org/examples/tools/reference/norm_to_uniform.html>`_
+    <https://porespy.org/examples/tools/reference/all_to_uniform.html>`_
     to view online example.
 
     """
     if scale is None:
         scale = [im.min(), im.max()]
-    im = (im - np.mean(im)) / np.std(im)
-    im = 1 / 2 * erfc(-im / np.sqrt(2))
-    im = (im - im.min()) / (im.max() - im.min())
-    im = im * (scale[1] - scale[0]) + scale[0]
+    aargsort_im = np.argsort(np.argsort(im.flatten())) # twice for the inverse permutation
+    linspace_im = np.linspace(scale[0], scale[1], len(aargsort_im), endpoint=True)
+    uniform_flatten_im = linspace_im[aargsort_im]
+    im = np.reshape(uniform_flatten_im, im.shape)
     return im
 
 

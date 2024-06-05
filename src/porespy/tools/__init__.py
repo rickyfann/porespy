@@ -30,7 +30,7 @@ ways that do NOT return a modified version of the original image.
     tools.make_contiguous
     tools.marching_map
     tools.mesh_region
-    tools.norm_to_uniform
+    tools.all_to_uniform
     tools.overlay
     tools.ps_ball
     tools.ps_disk
