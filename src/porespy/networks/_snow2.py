@@ -42,11 +42,12 @@ def estimate_overlap_and_chunk(im):
 
     return overlap, chunk_shape
 
+
 def snow2(phases,
           phase_alias=None,
           boundary_width=3,
           accuracy='standard',
-          voxel_size=(1, 1, 1),
+          voxel_size=1,
           sigma=0.4,
           r_max=4,
           peaks=None,
