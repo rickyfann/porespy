@@ -1,5 +1,5 @@
-import logging
 import numpy as np
+from loguru import logger
 from porespy.tools import Results
 from porespy.networks import (
     regions_to_network,
@@ -21,9 +21,6 @@ __all__ = [
     "snow2",
     "_parse_pad_width",
 ]
-
-
-logger = logging.getLogger(__name__)
 
 
 def estimate_overlap_and_chunk(im):
@@ -113,7 +110,8 @@ def snow2(phases,
 
     voxel_size : tuple (default = (1, 1, 1))
         The resolution of the image, expressed as the length of the sides of a
-        voxel, so the volume of a voxel would be the product of **voxel_size** coords.
+        voxel, so the volume of a voxel would be the product of **voxel_size**
+        coords.
     r_max : int
         The radius of the spherical structuring element to use in the
         Maximum filter stage that is used to find peaks. The default is 4.
@@ -200,12 +198,17 @@ def snow2(phases,
         phase = phases == i
         pk = None if peaks is None else peaks*phase
         overlap, chunk = estimate_overlap_and_chunk(phase)
-        if (overlap>(chunk//2-1)).any():
+        if (overlap > (chunk//2 - 1)).any():
             parallelization = None
-            logger.warning("Disabling paralelization as overlap is bigger than chunk size.")
+            logger.warning("Disabling paralelization as overlap exceeds than chunk size.")
         if parallelization is not None:
             snow = snow_partitioning_parallel(
-                im=phase, sigma=sigma, r_max=r_max, overlap=overlap, **parallelization)
+                im=phase,
+                sigma=sigma,
+                r_max=r_max,
+                overlap=overlap,
+                **parallelization,
+            )
         else:
             snow = snow_partitioning(im=phase, sigma=sigma, r_max=r_max,
                                      peaks=pk)
