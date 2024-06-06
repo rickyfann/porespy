@@ -109,7 +109,7 @@ def snow_partitioning(im, dt=None, r_max=4, sigma=0.4, peaks=None):
         logger.info("Converting supplied image to boolean")
         im = im > 0
     if dt is None:
-        logger.info("Peforming distance transform")
+        logger.info("Performing distance transform")
         if np.any(im_shape == 1):
             dt = np.sqrt(edt(im.squeeze()))
             dt = dt.reshape(im_shape)
