@@ -43,16 +43,18 @@ def estimate_overlap_and_chunk(im):
     return overlap, chunk_shape
 
 
-def snow2(phases,
-          phase_alias=None,
-          boundary_width=3,
-          accuracy='standard',
-          voxel_size=1,
-          sigma=0.4,
-          r_max=4,
-          peaks=None,
-          porosity_map=None,
-          parallelization={},):
+def snow2(
+    phases,
+    phase_alias=None,
+    boundary_width=3,
+    accuracy='standard',
+    voxel_size=1,
+    sigma=0.4,
+    r_max=4,
+    peaks=None,
+    porosity_map=None,
+    parallelization={},
+):
     r"""
     Applies the SNOW algorithm to each phase indicated in ``phases``.
 
@@ -97,17 +99,18 @@ def snow2(phases,
         the analysis of regions in the ``regions_to_network`` function.
         Options are:
 
-            - 'standard' (default)
-                Computes the surface areas and perimeters by simply
-                counting voxels. This is *much* faster but does not
-                properly account for the rough voxelated nature
-                of the surfaces.
-
-            - 'high'
-                Computes surface areas using the marching cube
-                method, and perimeters using the fast marching method. These
-                are substantially slower but better account for the
-                voxelated nature of the images.
+        ------------ --------------------------------------------------------
+        Value        Description
+        ------------ --------------------------------------------------------
+        'standard'   Computes the surface areas and perimeters by simply
+                     counting voxels. This is *much* faster but does not
+                     properly account for the rough voxelated nature of the
+                     surfaces.
+        'high'       Computes surface areas using the marching cube method,
+                     and perimeters using the fast marching method. These
+                     are substantially slower but better account for the
+                     voxelated nature of the images.
+        ------------ --------------------------------------------------------
 
     voxel_size : tuple (default = (1, 1, 1))
         The resolution of the image, expressed as the length of the sides of a

@@ -45,14 +45,21 @@ def regions_to_network(
     accuracy : string
         Controls how accurately certain properties are calculated. Options are:
 
-        'standard' (default)
-            Computes the surface areas and perimeters by simply counting
-            voxels.  This is *much* faster but does not properly account
-            for the rough, voxelated nature of the surfaces.
-        'high'
-            Computes surface areas using the marching cube method, and
-            perimeters using the fast marching method.  These are substantially
-            slower but better account for the voxelated nature of the images.
+        ------------ --------------------------------------------------------
+        Value        Description
+        ------------ --------------------------------------------------------
+        'standard'   Computes the surface areas and perimeters by simply
+                     counting voxels. This is *much* faster but does not
+                     properly account for the rough voxelated nature of the
+                     surfaces.
+        'high'       Computes surface areas using the marching cube method,
+                     and perimeters using the fast marching method. These
+                     are substantially slower but better account for the
+                     voxelated nature of the images.
+        ------------ --------------------------------------------------------
+
+    porosity_map : None
+        This is not supported for this version of the function.
 
     Returns
     -------
