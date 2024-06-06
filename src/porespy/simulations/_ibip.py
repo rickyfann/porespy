@@ -14,7 +14,7 @@ try:
     def edt(im):
         return np.sqrt(cdt(im))
 
-except ImportError:
+except ModuleNotFoundError:
     from edt import edt
 
 

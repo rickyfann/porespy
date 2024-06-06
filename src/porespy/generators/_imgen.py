@@ -27,7 +27,7 @@ try:
     def edt(im):
         return np.sqrt(cdt(im))
 
-except ImportError:
+except ModuleNotFoundError:
     from edt import edt
 
 
@@ -696,7 +696,7 @@ def voronoi_edges(
             line_pts = line_segment(pts[0], pts[1])
             im[tuple(line_pts)] = True
     im = extract_subsection(im=im, shape=shape)
-    im = edt(~im) > r**2
+    im = edt(~im) > r
     return im
 
 
@@ -870,9 +870,9 @@ def lattice_spheres(
            offset[1]+int(spacing[1]/2)::spacing[1],
            offset[2]+int(spacing[2]/2)::spacing[2]] = True
     if smooth:
-        im = ~(edt(~im) < r**2)
+        im = ~(edt(~im) < r)
     else:
-        im = ~(edt(~im) <= r**2)
+        im = ~(edt(~im) <= r)
     return im
 
 
@@ -939,7 +939,7 @@ def overlapping_spheres(
 
     # Helper functions for calculating porosity: phi = g(f(N))
     def f(N):
-        return edt(im > N / bulk_vol) < r**2
+        return edt(im > N / bulk_vol) < r
 
     def g(im):
         r"""Returns fraction of 0s, given a binary image"""

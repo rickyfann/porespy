@@ -32,7 +32,7 @@ try:
     def edt(im):
         return np.sqrt(cdt(im))
 
-except ImportError:
+except ModuleNotFoundError:
     from edt import edt
 
 
@@ -235,7 +235,7 @@ def regions_to_network_parallel(
 
     try:
         from pyedt import jit_edt_cpu
-    except ImportError as e:
+    except ModuleNotFoundError as e:
         raise e
 
     net = _jit_regions_to_network(

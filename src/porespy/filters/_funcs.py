@@ -21,7 +21,7 @@ try:
     def edt(im):
         return np.sqrt(cdt(im))
 
-except ImportError:
+except ModuleNotFoundError:
     from edt import edt
 
 
@@ -1195,7 +1195,7 @@ def porosimetry(
                                           overlap=int(r) + 1, parallel=0,
                                           cores=settings.ncores, divs=divs) < r
                 else:
-                    imtemp = edt(~imtemp) < r**2
+                    imtemp = edt(~imtemp) < r
                 imresults[(imresults == 0) * imtemp] = r
     elif mode == "hybrid":
         imresults = np.zeros(np.shape(im))
