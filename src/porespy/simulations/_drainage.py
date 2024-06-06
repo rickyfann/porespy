@@ -13,7 +13,11 @@ from porespy.filters import (
     satn_to_seq,
 )
 try:
-    from pyedt import edt
+    from pyedt import edt as cdt
+
+    def edt(im):
+        return np.sqrt(cdt(im))
+
 except ImportError:
     from edt import edt
 
@@ -113,7 +117,7 @@ def drainage(im, voxel_size, pc=None, inlets=None, outlets=None, residual=None,
 
     """
     im = np.array(im, dtype=bool)
-    dt = np.sqrt(edt(im))
+    dt = edt(im)
     if pc is None:
         pc = -(im.ndim-1)*sigma*np.cos(np.deg2rad(theta))/(dt*voxel_size)
     pc[~im] = 0  # Remove any infs or nans from pc computation
@@ -121,7 +125,7 @@ def drainage(im, voxel_size, pc=None, inlets=None, outlets=None, residual=None,
     # Generate image for correcting entry pressure by gravitational effects
     h = np.ones_like(im, dtype=bool)
     h[0, ...] = False
-    h = (np.sqrt(edt(h)) + 1)*voxel_size   # This could be done quicker using clever logic
+    h = (edt(h) + 1)*voxel_size   # This could be done quicker using clever logic
     rgh = delta_rho*g*h
     fn = pc + rgh
 

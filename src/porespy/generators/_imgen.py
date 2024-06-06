@@ -22,7 +22,11 @@ from porespy.tools import (
 )
 import numpy.typing as npt
 try:
-    from pyedt import edt
+    from pyedt import edt as cdt
+
+    def edt(im):
+        return np.sqrt(cdt(im))
+
 except ImportError:
     from edt import edt
 

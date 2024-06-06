@@ -1,5 +1,5 @@
 import numpy as np
-from loguru import logger
+import logging
 from porespy.tools import Results
 from porespy.networks import (
     regions_to_network,
@@ -12,7 +12,11 @@ from porespy.filters import (
     snow_partitioning_parallel,
 )
 try:
-    from pyedt import edt
+    from pyedt import edt as cdt
+
+    def edt(im):
+        return np.sqrt(cdt(im))
+
 except ImportError:
     from edt import edt
 
@@ -21,6 +25,9 @@ __all__ = [
     "snow2",
     "_parse_pad_width",
 ]
+
+
+logger = logging.getLogger(__name__)
 
 
 def estimate_overlap_and_chunk(im):
@@ -37,7 +44,7 @@ def estimate_overlap_and_chunk(im):
             im = im.swapaxes(i, 0)
 
     chunk_shape = (np.array(shape) / np.array(divs)).astype(int)
-    dt = np.sqrt(edt((im > 0)))
+    dt = edt((im > 0))
     overlap = dt.max()
 
     return overlap, chunk_shape

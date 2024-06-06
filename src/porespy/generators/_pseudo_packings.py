@@ -16,10 +16,13 @@ from porespy.tools import (
 )
 from porespy.filters import trim_disconnected_blobs
 try:
-    from pyedt import edt
+    from pyedt import edt as cdt
+
+    def edt(im):
+        return np.sqrt(cdt(im))
+
 except ImportError:
     from edt import edt
-
 
 __all__ = [
     "pseudo_gravity_packing",

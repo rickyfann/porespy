@@ -12,7 +12,11 @@ try:
 except ImportError:
     from skimage.measure import marching_cubes_lewiner as marching_cubes
 try:
-    from pyedt import edt
+    from pyedt import edt as cdt
+
+    def edt(im):
+        return np.sqrt(cdt(im))
+
 except ImportError:
     from edt import edt
 
@@ -257,14 +261,14 @@ class RegionPropertiesPS(RegionProperties):
     def dt(self):
         mask = self.mask
         mask_padded = np.pad(mask, pad_width=1, mode='constant')
-        temp = np.sqrt(edt(mask_padded))
+        temp = edt(mask_padded)
         return extract_subsection(temp, shape=mask.shape)
 
     @property
     def inscribed_sphere(self):
         dt = self.dt
         r = dt.max()
-        inv_dt = np.sqrt(edt(dt < r))
+        inv_dt = edt(dt < r)
         return inv_dt < r
 
     @property

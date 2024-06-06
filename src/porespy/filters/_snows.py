@@ -14,7 +14,11 @@ from porespy.tools import get_tqdm
 from porespy.filters import chunked_func
 from porespy import settings
 try:
-    from pyedt import edt
+    from pyedt import edt as cdt
+
+    def edt(im):
+        return np.sqrt(cdt(im))
+
 except ImportError:
     from edt import edt
 
@@ -111,10 +115,10 @@ def snow_partitioning(im, dt=None, r_max=4, sigma=0.4, peaks=None):
     if dt is None:
         logger.info("Performing distance transform")
         if np.any(im_shape == 1):
-            dt = np.sqrt(edt(im.squeeze()))
+            dt = edt(im.squeeze())
             dt = dt.reshape(im_shape)
         else:
-            dt = np.sqrt(edt(im))
+            dt = edt(im)
 
     if peaks is None:
         if sigma > 0:
@@ -603,14 +607,14 @@ def _estimate_overlap(im, mode='dt', zoom=0.25):
     if mode == 'watershed':
         rev = spim.interpolation.zoom(im, zoom=zoom, order=0)
         rev = rev > 0
-        dt = np.sqrt(edt(rev))
+        dt = edt(rev)
         rev_snow = snow_partitioning(rev, dt=dt)
         labels, counts = np.unique(rev_snow, return_counts=True)
         node = np.where(counts == counts[1:].max())[0][0]
         slices = spim.find_objects(rev_snow)
         overlap = max(rev_snow[slices[node - 1]].shape) / (zoom * 2.0)
     if mode == 'dt':
-        dt = np.sqrt(edt((im > 0)))
+        dt = edt((im > 0))
         overlap = dt.max()
     return overlap
 
@@ -685,7 +689,7 @@ def snow_partitioning_parallel(im,
     overlap = overlap / 2.0
     logger.debug(f'Overlap thickness: {int(2 * overlap)} voxels')
 
-    dt = np.sqrt(edt((im > 0)))
+    dt = edt((im > 0))
 
     # Get overlap and trim depth of all image dimension
     depth = {}

@@ -6,7 +6,11 @@ from porespy.tools import (
     Results,
 )
 try:
-    from pyedt import edt
+    from pyedt import edt as cdt
+
+    def edt(im):
+        return np.sqrt(cdt(im))
+
 except ImportError:
     from edt import edt
 
@@ -60,7 +64,7 @@ def ibip_gpu(im, dt=None, inlets=None, maxiter=10000):  # pragma: no cover
     from cupyx.scipy import ndimage as cndi
 
     im_gpu = cp.array(im)
-    dt = np.sqrt(edt(cp.asnumpy(im))) if dt is None else dt
+    dt = edt(cp.asnumpy(im)) if dt is None else dt
     dt_gpu = cp.array(dt)
     inlets = get_border(shape=im.shape) if inlets is None else inlets
     inlets_gpu = cp.array(inlets)

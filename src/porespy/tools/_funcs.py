@@ -10,7 +10,11 @@ try:
 except ImportError:
     from skimage.measure import marching_cubes_lewiner as marching_cubes
 try:
-    from pyedt import edt
+    from pyedt import edt as cdt
+
+    def edt(im):
+        return np.sqrt(cdt(im))
+
 except ImportError:
     from edt import edt
 
@@ -480,12 +484,12 @@ def find_outer_region(im, r=None):
         r = int(np.sqrt(np.amax(dt))) * 2
     im_padded = np.pad(array=im, pad_width=r, mode='constant',
                        constant_values=True)
-    dt = np.sqrt(edt(im_padded))
+    dt = edt(im_padded)
     seeds = (dt >= r) + get_border(shape=im_padded.shape)
     # Remove seeds not connected to edges
     labels = spim.label(seeds)[0]
     mask = labels == 1  # Assume label of 1 on edges, assured by adding border
-    dt = np.sqrt(edt(~mask))
+    dt = edt(~mask)
     outer_region = dt < r
     outer_region = extract_subsection(im=outer_region, shape=im.shape)
     return outer_region

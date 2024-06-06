@@ -8,7 +8,11 @@ from porespy.filters import reduce_peaks
 from porespy.networks import generate_voxel_image
 from porespy.tools import sanitize_filename
 try:
-    from pyedt import edt
+    from pyedt import edt as cdt
+
+    def edt(im):
+        return np.sqrt(cdt(im))
+
 except ImportError:
     from edt import edt
 
@@ -537,7 +541,7 @@ def spheres_to_comsol(filename, im=None, centers=None, radii=None):
     if im is not None:
         if im.ndim != 3:
             raise Exception('Image must be 3D.')
-        dt = np.sqrt(edt(im > 0))
+        dt = edt(im > 0)
         dt2 = nd.gaussian_filter(dt, sigma=0.1)
         peaks = (im > 0)*(nd.maximum_filter(dt2, footprint=ball(3)) == dt)
         peaks = reduce_peaks(peaks)

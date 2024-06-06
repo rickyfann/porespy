@@ -9,7 +9,11 @@ from porespy.tools import (
     Results,
 )
 try:
-    from pyedt import edt
+    from pyedt import edt as cdt
+
+    def edt(im):
+        return np.sqrt(cdt(im))
+
 except ImportError:
     from edt import edt
 
@@ -70,7 +74,7 @@ def ibip(im, inlets=None, dt=None, maxiter=10000):
         inlets = get_border(shape=im.shape, mode='faces')
     bd = np.copy(inlets > 0)
     if dt is None:  # Find dt if not given
-        dt = np.sqrt(edt(im))
+        dt = edt(im)
     dt = dt.astype(int)  # Conert the dt to nearest integer
     # Initialize inv image with -1 in the solid, and 0's in the void
     inv = -1*(~im)

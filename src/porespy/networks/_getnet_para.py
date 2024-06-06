@@ -27,7 +27,11 @@ from porespy.metrics import (
     region_volumes,
 )
 try:
-    from pyedt import edt
+    from pyedt import edt as cdt
+
+    def edt(im):
+        return np.sqrt(cdt(im))
+
 except ImportError:
     from edt import edt
 
@@ -221,7 +225,7 @@ def regions_to_network_parallel(
     if im.size != phases.size:
         raise Exception('regions and phase are different sizes, probably ' +
                         'because boundary regions were not added to phases')
-    dt = np.sqrt(edt(phases >= 1, scale=voxel_size))
+    dt = edt(phases >= 1, scale=voxel_size)
 
     # Get 'slices' into im for each pore region
     slices = spim.find_objects(im)

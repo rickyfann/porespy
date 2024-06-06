@@ -16,7 +16,11 @@ from porespy import settings
 from porespy.tools import get_tqdm
 from typing import Literal
 try:
-    from pyedt import edt
+    from pyedt import edt as cdt
+
+    def edt(im):
+        return np.sqrt(cdt(im))
+
 except ImportError:
     from edt import edt
 
@@ -1126,7 +1130,7 @@ def porosimetry(
     """
     from porespy.filters import fftmorphology
     im = np.squeeze(im)
-    dt = np.sqrt(edt(im > 0))
+    dt = edt(im > 0)
 
     if inlets is None:
         inlets = get_border(im.shape, mode="faces")
@@ -1186,7 +1190,7 @@ def porosimetry(
                                                  strel=strel_2(1))
             if np.any(imtemp):
                 if parallel:
-                    imtemp = chunked_func(func=lambda x: np.sqrt(edt(x)),
+                    imtemp = chunked_func(func=lambda x: edt(x),
                                           data=~imtemp, im_arg='data',
                                           overlap=int(r) + 1, parallel=0,
                                           cores=settings.ncores, divs=divs) < r
