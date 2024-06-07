@@ -14,14 +14,13 @@ ps.settings.tqdm['disable'] = True
 class SimulationsTest():
     def setup_class(self):
         np.random.seed(0)
-        self.im = ps.generators.blobs(shape=[100, 100, 100], blobiness=2)
-        # Ensure that im was generated as expeccted
-        assert ps.metrics.porosity(self.im) == 0.499829
+        self.im = ps.generators.blobs(shape=[100, 100, 100], blobiness=2, seed=0)
+        assert self.im.sum()/self.im.size == 0.499829
         self.im_dt = edt(self.im)
 
     def test_drainage_with_gravity(self):
-        np.random.seed(2)
-        im = ps.generators.blobs(shape=[100, 100], porosity=0.7)
+        im = ps.generators.blobs(shape=[100, 100], porosity=0.7, seed=2)
+        assert im.sum()/im.size == 0.7066
         dt = edt(im)
         pc = -2*0.072*np.cos(np.deg2rad(180))/dt
         np.testing.assert_approx_equal(pc[im].max(), 0.144)
@@ -37,8 +36,8 @@ class SimulationsTest():
 
     def test_gdd(self):
         from porespy import beta
-        np.random.seed(1)
-        im = ps.generators.blobs(shape=[100, 100, 100], porosity=0.7)
+        im = ps.generators.blobs(shape=[100, 100, 100], porosity=0.7, seed=1)
+        assert im.sum()/im.size == 0.703276
         res = beta.tortuosity_gdd(im=im, scale_factor=3)
 
         np.testing.assert_approx_equal(res.tau[0], 1.3940746215566113, significant=5)

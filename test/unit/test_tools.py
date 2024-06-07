@@ -15,29 +15,31 @@ class ToolsTest():
         plt.close('all')
         np.random.seed(0)
         self.im = np.random.randint(0, 10, 20)
-        np.random.seed(0)
-        self.blobs = ps.generators.blobs(shape=[101, 101])
-        self.im2D = ps.generators.blobs(shape=[51, 51])
-        self.im3D = ps.generators.blobs(shape=[51, 51, 51])
+        self.blobs = ps.generators.blobs(shape=[101, 101], seed=0)
+        assert self.blobs.sum()/self.blobs.size == 0.49259876482697773
+        self.im2D = ps.generators.blobs(shape=[51, 51], seed=0)
+        assert self.im2D.sum()/self.im2D.size == 0.48212226066897346
+        self.im3D = ps.generators.blobs(shape=[51, 51, 51], seed=0)
+        assert self.im3D.sum()/self.im3D.size == 0.49954391599007925
         self.labels, N = spim.label(input=self.blobs)
 
     def test_unpad(self):
         pad_width = [10, 20]
-        im = ps.generators.blobs([200, 300], porosity=0.3)
+        im = ps.generators.blobs([200, 300], porosity=0.3, seed=0)
         im1 = np.pad(im, pad_width, mode="constant", constant_values=1)
         im2 = ps.tools.unpad(im1, pad_width)
         assert np.all(im == im2)
 
     def test_unpad_int_padwidth(self):
         pad_width = 10
-        im = ps.generators.blobs([200, 300], porosity=0.3)
+        im = ps.generators.blobs([200, 300], porosity=0.3, seed=0)
         im1 = np.pad(im, pad_width, mode="constant", constant_values=1)
         im2 = ps.tools.unpad(im1, pad_width)
         assert np.all(im == im2)
 
     def test_unpad_different_padwidths_on_each_axis(self):
         pad_width = [[10, 20], [30, 40]]
-        im = ps.generators.blobs([200, 300], porosity=0.3)
+        im = ps.generators.blobs([200, 300], porosity=0.3, seed=0)
         im1 = np.pad(im, pad_width, mode="constant", constant_values=1)
         im2 = ps.tools.unpad(im1, pad_width)
         assert np.all(im == im2)
@@ -322,9 +324,9 @@ class ToolsTest():
 
     def test_find_outer_region(self):
         outer = ps.tools.find_outer_region(self.im3D)
-        assert outer.sum() == 1989
+        assert outer.sum() == 2035
         outer = ps.tools.find_outer_region(self.im2D)
-        assert outer.sum() == 64
+        assert outer.sum() == 105
 
     def test_numba_insert_disk_2D(self):
         im = np.zeros([50, 50], dtype=int)
