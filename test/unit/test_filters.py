@@ -12,9 +12,9 @@ ps.settings.tqdm['disable'] = True
 class FilterTest():
     def setup_class(self):
         np.random.seed(0)
-        self.im = ps.generators.blobs(shape=[100, 100, 100], blobiness=2)
+        self.im = ps.generators.blobs(shape=[100, 100, 100], blobiness=2, seed=0)
         # Ensure that im was generated as expeccted
-        assert ps.metrics.porosity(self.im) == 0.499829
+        assert self.im.sum()/self.im.size == 0.499829
         self.im_dt = edt(self.im)
 
     def test_im_in_not_im_out(self):
@@ -123,6 +123,7 @@ class FilterTest():
     def test_trim_nonpercolating_paths_2d_axis0(self):
         np.random.seed(0)
         im = ps.generators.blobs([200, 200], porosity=0.55, blobiness=2)
+        assert im.sum()/im.size == 0.55875
         inlets = np.zeros_like(im)
         inlets[0, :] = 1
         outlets = np.zeros_like(im)
@@ -136,6 +137,7 @@ class FilterTest():
     def test_trim_nonpercolating_paths_2d_axis1(self):
         np.random.seed(0)
         im = ps.generators.blobs([200, 200], porosity=0.55, blobiness=2)
+        assert im.sum()/im.size == 0.55875
         inlets = np.zeros_like(im)
         inlets[:, 0] = 1
         outlets = np.zeros_like(im)
@@ -149,6 +151,7 @@ class FilterTest():
     def test_trim_nonpercolating_paths_no_paths(self):
         np.random.seed(0)
         im = ps.generators.blobs([200, 200], porosity=0.25, blobiness=2)
+        assert im.sum()/im.size == 0.2535
         inlets = np.zeros_like(im)
         inlets[:, 0] = 1
         outlets = np.zeros_like(im)
@@ -162,6 +165,7 @@ class FilterTest():
     def test_trim_nonpercolating_paths_3d_axis2(self):
         np.random.seed(0)
         im = ps.generators.blobs([100, 100, 100], porosity=0.55, blobiness=2)
+        assert im.sum()/im.size == 0.550191
         inlets = np.zeros_like(im)
         inlets[..., 0] = 1
         outlets = np.zeros_like(im)
@@ -175,6 +179,7 @@ class FilterTest():
     def test_trim_nonpercolating_paths_3d_axis1(self):
         np.random.seed(0)
         im = ps.generators.blobs([100, 100, 100], porosity=0.55, blobiness=2)
+        assert im.sum()/im.size == 0.550191
         inlets = np.zeros_like(im)
         inlets[:, 0, :] = 1
         outlets = np.zeros_like(im)
@@ -188,6 +193,7 @@ class FilterTest():
     def test_trim_nonpercolating_paths_3d_axis0(self):
         np.random.seed(0)
         im = ps.generators.blobs([100, 100, 100], porosity=0.55, blobiness=2)
+        assert im.sum()/im.size == 0.550191
         inlets = np.zeros_like(im)
         inlets[0, ...] = 1
         outlets = np.zeros_like(im)
@@ -201,6 +207,7 @@ class FilterTest():
     def test_trim_disconnected_blobs(self):
         np.random.seed(0)
         im = ps.generators.blobs([200, 200], porosity=0.55, blobiness=2)
+        assert im.sum()/im.size == 0.55875
         inlets = np.zeros_like(im)
         inlets[0, ...] = 1
         n1 = spim.label(im)[1]
@@ -225,6 +232,7 @@ class FilterTest():
 
     def test_fill_blind_pores_surface_blobs_2D(self):
         im = ps.generators.blobs([100, 100], porosity=0.6, seed=0)
+        assert im.sum()/im.size == 0.6021
         im2 = ps.filters.fill_blind_pores(im)
         assert im.sum() == 6021
         assert im2.sum() == 5981
@@ -232,7 +240,8 @@ class FilterTest():
         assert im3.sum() == 5699
 
     def test_fill_blind_pores_surface_blobs_3D(self):
-        im = ps.generators.blobs([100, 100, 100], porosity=0.5)
+        im = ps.generators.blobs([100, 100, 100], porosity=0.5, seed=0)
+        assert im.sum()/im.size == 0.497569
         im2 = ps.filters.fill_blind_pores(im, surface=True)
         labels, N = spim.label(im2, ps.tools.ps_rect(3, ndim=3))
         assert N == 1
@@ -396,6 +405,7 @@ class FilterTest():
     def test_snow_partitioning_n_2D(self):
         np.random.seed(0)
         im = ps.generators.blobs([500, 500], blobiness=1)
+        assert im.sum()/im.size == 0.508208
         snow = ps.filters.snow_partitioning_n(im + 1, r_max=4, sigma=0.4)
         assert np.amax(snow.regions) == 136
         assert not np.any(np.isnan(snow.regions))
@@ -405,6 +415,7 @@ class FilterTest():
     def test_snow_partitioning_n_3D(self):
         np.random.seed(0)
         im = ps.generators.blobs([100, 100, 100], blobiness=0.75)
+        assert im.sum()/im.size == 0.500288
         snow = ps.filters.snow_partitioning_n(im + 1, r_max=4, sigma=0.4)
         assert np.amax(snow.regions) == 620
         assert not np.any(np.isnan(snow.regions))
@@ -456,7 +467,8 @@ class FilterTest():
 
     def test_chunked_func_w_ill_defined_filter(self):
         import scipy.signal as spsg
-        im = ps.generators.blobs(shape=[100, 100, 100])
+        im = ps.generators.blobs(shape=[100, 100, 100], seed=0)
+        assert im.sum()/im.size == 0.497569
         with pytest.raises(IndexError):
             ps.filters.chunked_func(func=spsg.convolve,
                                     in1=im*1.0,
@@ -479,15 +491,16 @@ class FilterTest():
         assert skel2.sum() == skel3.sum()
 
     def test_apply_padded(self):
-        im = ps.generators.blobs(shape=[100, 100])
+        im = ps.generators.blobs(shape=[100, 100], porosity=0.5)
+        assert im.sum()/im.size == 0.523
         skel1 = skeletonize_3d(im)
         skel2 = ps.filters.apply_padded(im=im, pad_width=20, pad_val=1,
                                         func=skeletonize_3d)
         assert (skel1.astype(bool)).sum() != (skel2.astype(bool)).sum()
 
     def test_trim_small_clusters(self):
-        np.random.seed(0)
-        im = ps.generators.blobs(shape=[100, 100], blobiness=2, porosity=0.4)
+        im = ps.generators.blobs(shape=[100, 100], blobiness=2, porosity=0.4, seed=0)
+        assert im.sum()/im.size == 0.4028
         im5 = ps.filters.trim_small_clusters(im=im, size=5)
         im10 = ps.filters.trim_small_clusters(im=im, size=10)
         assert im5.sum() > im10.sum()
@@ -512,7 +525,8 @@ class FilterTest():
         assert np.all(diff <= 1e-15)
 
     def test_nl_means_layered(self):
-        im = ps.generators.blobs(shape=[50, 50, 50], blobiness=.5)
+        im = ps.generators.blobs(shape=[50, 50, 50], blobiness=0.5, seed=0)
+        assert im.sum()/im.size == 0.492664
         im2 = random_noise(im, seed=0)
         filt = ps.filters.nl_means_layered(im=im2)
         p1 = (filt[0, ...] > 0.5).sum()
@@ -520,10 +534,11 @@ class FilterTest():
         np.testing.assert_approx_equal(np.around(p1 / p2, decimals=1), 1)
 
     def test_trim_nearby_peaks(self):
-        np.random.seed(0)
         im = ps.generators.blobs(shape=[400, 400],
                                  blobiness=[2, 1],
-                                 porosity=0.6)
+                                 porosity=0.6,
+                                 seed=0)
+        assert im.sum()/im.size == 0.5916375
         im_dt = edt(im)
         dt = spim.gaussian_filter(input=im_dt, sigma=0.4)
         peaks = ps.filters.find_peaks(dt=dt, r_max=4)
@@ -541,6 +556,7 @@ class FilterTest():
         im = ps.generators.blobs(shape=[400, 400],
                                  blobiness=[2, 1],
                                  porosity=0.6)
+        assert im.sum()/im.size == 0.59951875
         im_dt = edt(im)
         dt = spim.gaussian_filter(input=im_dt, sigma=0.4)
         peaks = ps.filters.find_peaks(dt=dt)
@@ -551,13 +567,14 @@ class FilterTest():
         assert num_peaks_after_far_trim <= num_peaks_after_close_trim
 
     def test_regions_size(self):
-        np.random.seed(0)
-        im = ps.generators.blobs([50, 50], porosity=0.1)
+        im = ps.generators.blobs([50, 50], porosity=0.1, seed=0)
+        assert im.sum()/im.size == 0.1164
         s = ps.filters.region_size(im)
         hits = [1, 2, 3, 4, 5, 6, 8, 9, 18, 23, 24, 26, 28, 31]
         assert np.all(hits == np.unique(s)[1:])
         np.random.seed(0)
-        im = ps.generators.blobs([20, 20, 20], porosity=0.1)
+        im = ps.generators.blobs([20, 20, 20], porosity=0.1, seed=0)
+        assert im.sum()/im.size == 0.121
         s = ps.filters.region_size(im)
         hits = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 16, 17, 19, 31, 32, 37]
         assert np.all(hits == np.unique(s)[1:])
