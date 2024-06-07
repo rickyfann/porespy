@@ -117,3 +117,7 @@ def test_drainage():
     assert drn2.snwp[-1] == 0.943675265674663
     assert drn3.snwp[-1] == 1
     assert drn4.snwp[-1] == 0.836364876928238
+
+
+if __name__ == "__main__":
+    test_drainage()
