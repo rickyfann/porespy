@@ -403,9 +403,8 @@ class FilterTest():
         assert np.all(dt[inds] - ar[inds] == 1)
 
     def test_snow_partitioning_n_2D(self):
-        np.random.seed(0)
-        im = ps.generators.blobs([500, 500], blobiness=1)
-        assert im.sum()/im.size == 0.508208
+        im = ps.generators.blobs([500, 500], blobiness=1, seed=0)
+        assert im.sum()/im.size == 0.494604
         snow = ps.filters.snow_partitioning_n(im + 1, r_max=4, sigma=0.4)
         assert np.amax(snow.regions) == 136
         assert not np.any(np.isnan(snow.regions))
@@ -413,9 +412,8 @@ class FilterTest():
         assert not np.any(np.isnan(snow.im))
 
     def test_snow_partitioning_n_3D(self):
-        np.random.seed(0)
-        im = ps.generators.blobs([100, 100, 100], blobiness=0.75)
-        assert im.sum()/im.size == 0.500288
+        im = ps.generators.blobs([100, 100, 100], blobiness=0.75, seed=0)
+        assert im.sum()/im.size == 0.495157
         snow = ps.filters.snow_partitioning_n(im + 1, r_max=4, sigma=0.4)
         assert np.amax(snow.regions) == 620
         assert not np.any(np.isnan(snow.regions))
@@ -491,8 +489,8 @@ class FilterTest():
         assert skel2.sum() == skel3.sum()
 
     def test_apply_padded(self):
-        im = ps.generators.blobs(shape=[100, 100], porosity=0.5)
-        assert im.sum()/im.size == 0.523
+        im = ps.generators.blobs(shape=[100, 100], porosity=0.5, seed=0)
+        assert im.sum()/im.size == 0.5051
         skel1 = skeletonize_3d(im)
         skel2 = ps.filters.apply_padded(im=im, pad_width=20, pad_val=1,
                                         func=skeletonize_3d)
@@ -552,11 +550,11 @@ class FilterTest():
         assert N == 113
 
     def test_trim_nearby_peaks_threshold(self):
-        np.random.seed(0)
         im = ps.generators.blobs(shape=[400, 400],
                                  blobiness=[2, 1],
-                                 porosity=0.6)
-        assert im.sum()/im.size == 0.59951875
+                                 porosity=0.6,
+                                 seed=0)
+        assert im.sum()/im.size == 0.5916375
         im_dt = edt(im)
         dt = spim.gaussian_filter(input=im_dt, sigma=0.4)
         peaks = ps.filters.find_peaks(dt=dt)
