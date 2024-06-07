@@ -58,20 +58,20 @@ def wait():
 
 def calculate_throat_perimeter(vx, sub_dt, voxel_size):
     # Directions used to evaluate geom properties
-    dirs = [
-        (1, 0, 0),
-        (0, 1, 0),
-        (0, 0, 1),
-        (-1, 0, 0),
-        (0, -1, 0),
-        (0, 0, -1),
-    ]
-    voxel_size = np.array(voxel_size)
-    voxel_areas = np.array([
-        voxel_size[1] * voxel_size[2],
-        voxel_size[2] * voxel_size[0],
-        voxel_size[0] * voxel_size[1],
-    ])
+    # dirs = [
+    #     (1, 0, 0),
+    #     (0, 1, 0),
+    #     (0, 0, 1),
+    #     (-1, 0, 0),
+    #     (0, -1, 0),
+    #     (0, 0, -1),
+    # ]
+    # voxel_size = np.array(voxel_size)
+    # voxel_areas = np.array([
+    #     voxel_size[1] * voxel_size[2],
+    #     voxel_size[2] * voxel_size[0],
+    #     voxel_size[0] * voxel_size[1],
+    # ])
 
     dx = voxel_size[0]*(max(vx[0]) - min(vx[0]))
     dy = voxel_size[1]*(max(vx[1]) - min(vx[1]))
@@ -552,14 +552,10 @@ def _jit_regions_to_network_parallel(
     worker_target = np.zeros((threads-1,), dtype=np.uint32)
 
     for self_id in prange(threads):
-
         if (self_id == (threads - 1)):
-
             current_pore = 1
-
             while True:
                 wait()
-
                 for worker_id in range(len(worker_status)):
                     if worker_status[worker_id] == IDLE:
                         if current_pore <= Np:
@@ -569,17 +565,23 @@ def _jit_regions_to_network_parallel(
                         else:
                             worker_status[worker_id] = FINISHED
                     if worker_status[worker_id] == DONE:
-
                         for throat_i in range(len(partial_t_conns_0[worker_id])):
-                            t_conns_0.append(partial_t_conns_0[worker_id][throat_i])
-                            t_conns_1.append(partial_t_conns_1[worker_id][throat_i])
-                            t_dia_inscribed.append(partial_t_dia_inscribed[worker_id][throat_i])
-                            t_perimeter.append(partial_t_perimeter[worker_id][throat_i])
-                            t_area.append(partial_t_area[worker_id][throat_i])
-                            t_coords_0.append(partial_t_coords_0[worker_id][throat_i])
-                            t_coords_1.append(partial_t_coords_1[worker_id][throat_i])
-                            t_coords_2.append(partial_t_coords_2[worker_id][throat_i])
-
+                            t_conns_0.append(
+                                partial_t_conns_0[worker_id][throat_i])
+                            t_conns_1.append(
+                                partial_t_conns_1[worker_id][throat_i])
+                            t_dia_inscribed.append(
+                                partial_t_dia_inscribed[worker_id][throat_i])
+                            t_perimeter.append(
+                                partial_t_perimeter[worker_id][throat_i])
+                            t_area.append(
+                                partial_t_area[worker_id][throat_i])
+                            t_coords_0.append(
+                                partial_t_coords_0[worker_id][throat_i])
+                            t_coords_1.append(
+                                partial_t_coords_1[worker_id][throat_i])
+                            t_coords_2.append(
+                                partial_t_coords_2[worker_id][throat_i])
                         if current_pore <= Np:
                             worker_target[worker_id] = current_pore
                             current_pore += 1
@@ -588,16 +590,11 @@ def _jit_regions_to_network_parallel(
                             worker_status[worker_id] = FINISHED
                 if (np.equal(worker_status, FINISHED).all()):
                     break
-
         else:
-
             while True:
-
                 wait()
                 status = worker_status[self_id]
-
                 if status == ASSIGNED:
-
                     partial_t_conns_0[self_id] = List.empty_list(np.uint64)
                     partial_t_conns_1[self_id] = List.empty_list(np.uint64)
                     partial_t_dia_inscribed[self_id] = List.empty_list(np.float64)
@@ -654,12 +651,16 @@ def _jit_regions_to_network_parallel(
                         if j > pore:
                             partial_t_conns_0[self_id].append(pore)
                             partial_t_conns_1[self_id].append(j)
-                            partial_t_dia_inscribed[self_id].append(inscribed_diameter[j])
+                            partial_t_dia_inscribed[self_id].append(
+                                inscribed_diameter[j])
                             partial_t_perimeter[self_id].append(perimeters[j])
                             partial_t_area[self_id].append(areas[j])
-                            partial_t_coords_0[self_id].append(centers[j][0] + s_offset[0])
-                            partial_t_coords_1[self_id].append(centers[j][1] + s_offset[1])
-                            partial_t_coords_2[self_id].append(centers[j][2] + s_offset[2])
+                            partial_t_coords_0[self_id].append(centers[j][0] +
+                                                               s_offset[0])
+                            partial_t_coords_1[self_id].append(centers[j][1] +
+                                                               s_offset[1])
+                            partial_t_coords_2[self_id].append(centers[j][2] +
+                                                               s_offset[2])
 
                     worker_status[self_id] = DONE
 
@@ -667,7 +668,7 @@ def _jit_regions_to_network_parallel(
                     break
 
     # Clean up values
-    Nt = len(t_conns_0)  # Get number of throats
+    # Nt = len(t_conns_0)  # Get number of throats
 
     if len(t_conns_0) == 0:
         return None

@@ -2,15 +2,16 @@ import os
 import math
 import itertools
 from pathlib import Path
-
 from numba import njit
 import numpy as np
 from skimage import measure
 from scipy import spatial
 
+
 MC_TEMPLATES_FILENAME = 'marching_cubes_templates.dat'
 THIS_FOLDER = Path(__file__).absolute().parent
 MC_TEMPLATES_PATH = os.path.join(THIS_FOLDER, MC_TEMPLATES_FILENAME)
+
 
 def face_orientation(v0, v1, v2):
     '''
@@ -28,36 +29,37 @@ def face_orientation(v0, v1, v2):
     else:
         return 0
 
+
 def area_of_triangle(p0, p1, p2):
     '''
     As per Herons formula
     '''
-    lines = list(itertools.combinations((p0,p1,p2),2))
-    distances = [(spatial.distance.euclidean(i[0],i[1])) for i in lines]
+    lines = list(itertools.combinations((p0, p1, p2), 2))
+    distances = [(spatial.distance.euclidean(i[0], i[1])) for i in lines]
     s = sum(distances)/2
     product_of_diferences = np.prod([(s-i) for i in distances])
     area = math.sqrt(s*product_of_diferences)
     return area
 
 
-def mc_templates_generator(override = False):
+def mc_templates_generator(override=False):
     '''
     Generates a marching cubes template list file, if one is not available
     '''
     if os.path.isfile(MC_TEMPLATES_PATH) and not override:
         return
     summation_to_coordinate = {}
-    for i in [(x,y,z) for x in range(2) for y in range(2) for z in range(2)]:
+    for i in [(x, y, z) for x in range(2) for y in range(2) for z in range(2)]:
         summation_to_coordinate[2 ** (i[0] + 2*i[1] + 4*i[2])] = i
 
     templates_triangles = []
     for _ in range(256):
-        templates_triangles.append( [[],[]] )
+        templates_triangles.append([[], []])
 
-    for i in range(1,255):
-        array = np.zeros((2,2,2))
+    for i in range(1, 255):
+        array = np.zeros((2, 2, 2))
         index = i
-        for j in range(7,-1,-1):
+        for j in range(7, -1, -1):
             e = 2**j
             if index >= e:
                 index -= e
@@ -66,7 +68,7 @@ def mc_templates_generator(override = False):
         templates_triangles[i][0] = verts
         templates_triangles[i][1] = faces
 
-    with open(MC_TEMPLATES_PATH, mode = 'w') as file:
+    with open(MC_TEMPLATES_PATH, mode='w') as file:
         for i in range(256):
             verts, faces = templates_triangles[i]
             file.write(f'{i};')
@@ -78,7 +80,7 @@ def mc_templates_generator(override = False):
             file.write('\n')
 
 
-def create_mc_template_list(spacing = (1,1,1)):
+def create_mc_template_list(spacing=(1, 1, 1)):
     '''
     Return area and volume lists for the marching cubes templates
     Reads the templates file
@@ -90,8 +92,8 @@ def create_mc_template_list(spacing = (1,1,1)):
     areas = {}
     volumes = {}
     triangles = {}
-    vertices_on_top = set((16,32,64,128))
-    with open(MC_TEMPLATES_PATH, mode = 'r') as file:
+    vertices_on_top = set((16, 32, 64, 128))
+    with open(MC_TEMPLATES_PATH, mode='r') as file:
         for line in file:
             index, verts, faces = line.split(';')
             index = int(index)
@@ -108,7 +110,7 @@ def create_mc_template_list(spacing = (1,1,1)):
 
             occupied_vertices = set()
             sub_index = index
-            for i in range(7,-1,-1):
+            for i in range(7, -1, -1):
                 e = 2 ** i
                 if sub_index >= e:
                     occupied_vertices.add(e)
@@ -120,7 +122,7 @@ def create_mc_template_list(spacing = (1,1,1)):
                 basic_volume = 1/8
             elif total_vertices_on_top == 2:
                 if ((16 in occupied_vertices and 128 in occupied_vertices) or
-                    (32 in occupied_vertices and 64 in occupied_vertices)):
+                        (32 in occupied_vertices and 64 in occupied_vertices)):
                     basic_volume = 1/4
                 else:
                     basic_volume = 1/2
@@ -131,10 +133,10 @@ def create_mc_template_list(spacing = (1,1,1)):
 
             for f in faces:
                 v0, v1, v2 = [verts[i] for i in f]
-                v0_proj, v1_proj, v2_proj = [(i[0],i[1],0) for i in (v0,v1,v2)]
-                mean_z = sum([i[2] for i in (v0,v1,v2)])/3
+                v0_proj, v1_proj, v2_proj = [(i[0], i[1], 0) for i in (v0, v1, v2)]
+                mean_z = sum([i[2] for i in (v0, v1, v2)])/3
                 proj_area = area_of_triangle(v0_proj, v1_proj, v2_proj)
-                direction = face_orientation(v0,v1,v2)
+                direction = face_orientation(v0, v1, v2)
                 basic_volume += mean_z * proj_area * direction
 
             for i in range(len(verts)):
@@ -175,14 +177,15 @@ def calculate_area_and_volume(
     area = 0.0
     volume = 0.0
 
-    if debug: print("Shape: ", w, h, d)
+    if debug:
+        print("Shape: ", w, h, d)
 
     for x in range(w - 1):
         for y in range(h - 1):
             for z in range(d - 1):
-                if debug: print(x, y, z)
-                sub_array = img[x : x + 2, y : y + 2, z : z + 2]
-                
+                if debug:
+                    print(x, y, z)
+                sub_array = img[x:x + 2, y:y + 2, z:z + 2]
                 if target_label not in sub_array:
                     continue
 
@@ -221,6 +224,7 @@ def marching_cubes_area_and_volume(
 
     return area, volume
 
+
 @njit
 def jit_marching_cubes_area_and_volume(
     img,
@@ -232,10 +236,10 @@ def jit_marching_cubes_area_and_volume(
 ):
 
     vertex_index_array = np.array(
-        [[[  1,  16],
-        [  4,  64]],
-        [[  2,  32],
-        [  8, 128]]], 
+        [[[1, 16],
+          [4, 64]],
+         [[2, 32],
+          [8, 128]]],
         dtype=np.int32
     )
 

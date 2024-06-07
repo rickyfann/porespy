@@ -60,7 +60,7 @@ def region_volumes(regions, mode='marching_cubes', voxel_size=(1, 1, 1)):
     msg = "Computing region volumes".ljust(60)
     voxel_size = np.array(voxel_size, dtype=float, ndmin=1)
     if np.size(voxel_size) == 1:
-        voxel_size = np.array([voxel_size for i in range(im.ndim)]).flatten()
+        voxel_size = np.array([voxel_size for i in range(regions.ndim)]).flatten()
     for i, s in enumerate(tqdm(slices, desc=msg, **settings.tqdm)):
         region = regions[s] == (i + 1)
         if mode == 'marching_cubes':

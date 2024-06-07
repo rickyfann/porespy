@@ -59,6 +59,7 @@ TEMPLATE_REPETITION = (
     1/4,
 )
 
+
 @njit
 def jit_marching_squares_perimeter_and_area(
     img,
@@ -82,17 +83,21 @@ def jit_marching_squares_perimeter_and_area(
     for x in range(max_x - 1):
         for y in range(max_y - 1):
             template = 0
-            if img[x    , y    ] == target_label: template += 1
-            if img[x + 1, y    ] == target_label: template += 2
-            if img[x    , y + 1] == target_label: template += 4
-            if img[x + 1, y + 1] == target_label: template += 8
+            if img[x, y] == target_label:
+                template += 1
+            if img[x + 1, y] == target_label:
+                template += 2
+            if img[x, y + 1] == target_label:
+                template += 4
+            if img[x + 1, y + 1] == target_label:
+                template += 8
             if overlap:
-                total_perimeter += perimeters[TEMPLATE_PERIMETER[template]] * TEMPLATE_REPETITION[template]
-                total_area += complete_area * TEMPLATE_AREA[template] * TEMPLATE_REPETITION[template]
+                total_perimeter += perimeters[TEMPLATE_PERIMETER[template]] \
+                    * TEMPLATE_REPETITION[template]
+                total_area += complete_area * TEMPLATE_AREA[template] \
+                    * TEMPLATE_REPETITION[template]
             else:
                 total_perimeter += perimeters[TEMPLATE_PERIMETER[template]]
                 total_area += complete_area * TEMPLATE_AREA[template]
 
     return total_perimeter/2, total_area
-
-
