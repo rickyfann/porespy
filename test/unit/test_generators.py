@@ -313,7 +313,7 @@ class GeneratorTest():
         assert phi2 > phi1
 
     def test_random_spheres_preexisting_structure(self):
-        im = ps.generators.blobs(shape=[200, 200, 200], seed=0)
+        im = ps.generators.blobs(shape=[200, 200, 200], seed=0, porosity=0.4964785)
         phi1 = im.sum()/im.size
         assert phi1 == 0.4964785
         im = ps.generators.random_spheres(im=im, r=8, maxiter=200, edges='contained')

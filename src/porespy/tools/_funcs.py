@@ -477,7 +477,7 @@ def find_outer_region(im, r=None):
     """
     if r is None:
         dt = edt(im)
-        r = int(np.sqrt(np.amax(dt))) * 2
+        r = int(np.amax(dt)) * 2
     im_padded = np.pad(array=im, pad_width=r, mode='constant',
                        constant_values=True)
     dt = edt(im_padded)
@@ -1038,7 +1038,7 @@ def _functions_to_table(mod, colwidth=[27, 48]):
     return s
 
 
-def mesh_region(region: bool, strel=None, voxel_size=(1, 1, 1)):
+def mesh_region(region: bool, strel=None, voxel_size=(1.0, 1.0, 1.0)):
     r"""
     Creates a tri-mesh of the provided region using the marching cubes
     algorithm
@@ -1083,6 +1083,10 @@ def mesh_region(region: bool, strel=None, voxel_size=(1, 1, 1)):
     else:
         padded_mask = np.reshape(im, (1,) + im.shape)
         padded_mask = np.pad(padded_mask, pad_width=pad_width, mode='constant')
+
+    voxel_size = np.array(voxel_size, dtype=float, ndmin=1)
+    if np.size(voxel_size) == 1:
+        voxel_size = np.array([voxel_size for i in range(im.ndim)]).flatten()
     verts, faces, norm, val = marching_cubes(padded_mask, spacing=voxel_size)
     result = Results()
     result.verts = verts - pad_width

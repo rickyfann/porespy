@@ -5,7 +5,7 @@ ps.settings.tqdm['disable'] = True
 
 class NetworkSizeFactorTest():
     def setup_class(self):
-        im = ps.generators.blobs(shape=[50, 50, 50], porosity=0.5, seed=10)
+        im = ps.generators.blobs(shape=[50, 50, 50], porosity=0.498648, seed=10)
         assert im.sum()/im.size == 0.498648
         self.im = im[:15, :15, :15]
         self.snow = ps.networks.snow2(self.im, boundary_width=0,

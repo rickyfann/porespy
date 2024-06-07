@@ -20,11 +20,17 @@ class ToolsTest():
         plt.close('all')
         np.random.seed(0)
         self.im = np.random.randint(0, 10, 20)
-        self.blobs = ps.generators.blobs(shape=[101, 101], seed=0)
+        self.blobs = ps.generators.blobs(shape=[101, 101],
+                                         seed=0,
+                                         porosity=0.49259876482697773)
         assert self.blobs.sum()/self.blobs.size == 0.49259876482697773
-        self.im2D = ps.generators.blobs(shape=[51, 51], seed=0)
+        self.im2D = ps.generators.blobs(shape=[51, 51],
+                                        seed=0,
+                                        porosity=0.48212226066897346)
         assert self.im2D.sum()/self.im2D.size == 0.48212226066897346
-        self.im3D = ps.generators.blobs(shape=[51, 51, 51], seed=0)
+        self.im3D = ps.generators.blobs(shape=[51, 51, 51],
+                                        seed=0,
+                                        porosity=0.49954391599007925)
         assert self.im3D.sum()/self.im3D.size == 0.49954391599007925
         self.labels, N = spim.label(input=self.blobs)
 
