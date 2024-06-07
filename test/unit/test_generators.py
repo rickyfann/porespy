@@ -313,8 +313,9 @@ class GeneratorTest():
         assert phi2 > phi1
 
     def test_random_spheres_preexisting_structure(self):
-        im = ps.generators.blobs(shape=[200, 200, 200])
+        im = ps.generators.blobs(shape=[200, 200, 200], seed=0)
         phi1 = im.sum()/im.size
+        assert phi1 == 0.4964785
         im = ps.generators.random_spheres(im=im, r=8, maxiter=200, edges='contained')
         phi2 = im.sum()/im.size
         assert phi2 > phi1
@@ -408,7 +409,7 @@ class GeneratorTest():
         assert not np.all(im1 == im3)
 
     def test_pseudo_electrostatic_packing(self):
-        im1 = ps.generators.blobs(shape=[100, 100])
+        im1 = ps.generators.blobs(shape=[100, 100], seed=0)
         im2 = ps.generators.pseudo_electrostatic_packing(
             im=im1, r=3, clearance=1, protrusion=1)
         assert (im2.sum() > im1.sum())
