@@ -29,7 +29,8 @@ class MetricsTest():
         self.im3D = ps.generators.lattice_spheres(shape=[51, 51, 51],
                                                   r=4, spacing=14,
                                                   lattice='cubic')
-        self.blobs = ps.generators.blobs(shape=[101, 101, 101], porosity=0.5,
+        self.blobs = ps.generators.blobs(shape=[101, 101, 101],
+                                         porosity=0.499829,
                                          blobiness=[1, 2, 3])
         path = Path(os.path.realpath(__file__),
                     '../../../test/fixtures/partitioned_regions.tif')
@@ -84,7 +85,7 @@ class MetricsTest():
         assert (np.mean(rev.porosity) - 0.5)**2 < 0.05
 
     def test_radial_density(self):
-        dt = np.sqrt(edt(self.blobs))
+        dt = edt(self.blobs)
         den = ps.metrics.radial_density_distribution(dt)
         assert den.cdf.max() == 1
 
