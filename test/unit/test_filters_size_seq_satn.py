@@ -14,8 +14,10 @@ class SeqTest():
         bd = np.zeros_like(self.im)
         bd[:, 0] = True
         self.bd = bd
-        self.im2D = ps.generators.blobs(shape=[51, 51])
-        self.im3D = ps.generators.blobs(shape=[51, 51, 51])
+        self.im2D = ps.generators.blobs(shape=[51, 51], seed=0)
+        assert self.im2D.sum()/self.im2D.size == 0.48212226066897346
+        self.im3D = ps.generators.blobs(shape=[51, 51, 51], seed=0)
+        assert self.im3D.sum()/self.im3D.size == 0.49954391599007925
 
     def test_satn_to_seq(self):
         satn = np.tile(np.atleast_2d(np.arange(0, 21)), [21, 1])/20
@@ -182,7 +184,8 @@ class SeqTest():
         assert satn[0, 2] == 0.95
 
     def test_compare_size_and_seq_to_satn(self):
-        im = ps.generators.blobs(shape=[250, 250])
+        im = ps.generators.blobs(shape=[250, 250], seed=0)
+        assert im.sum()/im.size == 0.496064
         dt = edt(im)
         sizes = np.arange(int(dt.max())+1, 0, -1)
         mio = ps.filters.porosimetry(im, sizes=sizes)
