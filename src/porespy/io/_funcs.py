@@ -8,11 +8,7 @@ from porespy.filters import reduce_peaks
 from porespy.networks import generate_voxel_image
 from porespy.tools import sanitize_filename
 try:
-    from pyedt import edt as cdt
-
-    def edt(im):
-        return np.sqrt(cdt(im))
-
+    from pyedt import edt
 except ModuleNotFoundError:
     from edt import edt
 

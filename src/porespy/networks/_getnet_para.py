@@ -27,11 +27,7 @@ from porespy.metrics import (
     region_volumes,
 )
 try:
-    from pyedt import edt as cdt
-
-    def edt(im):
-        return np.sqrt(cdt(im))
-
+    from pyedt import edt, jit_edt_cpu
 except ModuleNotFoundError:
     from edt import edt
 
@@ -232,11 +228,6 @@ def regions_to_network_parallel(
     flat_slices = []
     for sl in slices:
         flat_slices.extend(sl)
-
-    try:
-        from pyedt import jit_edt_cpu
-    except ModuleNotFoundError as e:
-        raise e
 
     net = _jit_regions_to_network(
         im=im,

@@ -9,11 +9,7 @@ from porespy.tools import (
     Results,
 )
 try:
-    from pyedt import edt as cdt
-
-    def edt(im):
-        return np.sqrt(cdt(im))
-
+    from pyedt import edt
 except ModuleNotFoundError:
     from edt import edt
 

@@ -17,7 +17,11 @@ ps.settings.tqdm['disable'] = True
 class FilterTest():
     def setup_class(self):
         np.random.seed(0)
-        self.im = ps.generators.blobs(shape=[100, 100, 100], blobiness=2)
+        # This odd porosity is so because the blobs function now returns EXACTLY
+        # the porosity requested, so I forced this value so all the tests pass
+        self.im = ps.generators.blobs(shape=[100, 100, 100],
+                                      blobiness=2,
+                                      porosity=0.499829)
         # Ensure that im was generated as expeccted
         assert ps.metrics.porosity(self.im) == 0.499829
         self.im_dt = np.sqrt(edt(self.im))

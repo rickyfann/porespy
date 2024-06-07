@@ -14,11 +14,7 @@ from porespy.tools import get_tqdm
 from porespy.filters import chunked_func
 from porespy import settings
 try:
-    from pyedt import edt as cdt
-
-    def edt(im):
-        return np.sqrt(cdt(im))
-
+    from pyedt import edt
 except ModuleNotFoundError:
     from edt import edt
 

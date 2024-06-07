@@ -200,7 +200,7 @@ class Snow2Test:
         im = ps.generators.blobs(shape=[400, 400],
                                  blobiness=[2, 1],
                                  porosity=0.6)
-        dt = np.sqrt(edt(im))
+        dt = edt(im)
         peaks1 = ps.filters.find_peaks(dt=dt, r_max=4)
         peaks2 = ps.filters.trim_saddle_points(peaks=peaks1, dt=dt)
         assert (peaks1 > 0).sum() > (peaks2 > 0).sum()
@@ -211,7 +211,7 @@ class Snow2Test:
         im = ps.generators.blobs(shape=[400, 400],
                                  blobiness=[2, 1],
                                  porosity=0.6)
-        dt = np.sqrt(edt(im))
+        dt = edt(im)
         peaks1 = ps.filters.find_peaks(dt=dt, r_max=4)
         peaks2 = ps.filters.trim_saddle_points_legacy(peaks=peaks1, dt=dt)
         assert (peaks1 > 0).sum() > (peaks2 > 0).sum()
@@ -303,7 +303,7 @@ class Snow2Test:
         im = ps.generators.blobs([200, 200], porosity=0.7, blobiness=1.5)
         snow1 = ps.filters.snow_partitioning(im, sigma=0.4, r_max=5)
         assert snow1.regions.max() == 97
-        dt1 = np.sqrt(pyedt.edt(im))
+        dt1 = edt(im)
         dt2 = spim.gaussian_filter(dt1, sigma=0.4)*im
         pk = ps.filters.find_peaks(dt2, r_max=5)
         pk = ps.filters.trim_saddle_points(peaks=pk, dt=dt1)
@@ -319,8 +319,8 @@ class Snow2Test:
         im = im + sph*1.0
         snow1 = ps.filters.snow_partitioning_n(im, sigma=0.4, r_max=5)
         assert snow1.regions.max() == 56
-        dt1 = np.sqrt(pyedt.edt(im == 1))
-        dt2 = np.sqrt(pyedt.edt(im == 2))
+        dt1 = edt(im == 1)
+        dt2 = edt(im == 2)
         dt3 = spim.gaussian_filter(dt1, sigma=0.4)*im
         dt4 = spim.gaussian_filter(dt2, sigma=0.4)*im
         pk1 = ps.filters.find_peaks(dt3, r_max=5)
@@ -335,7 +335,7 @@ class Snow2Test:
         im = ps.generators.blobs([200, 200], porosity=0.7, blobiness=1.5)
         snow1 = ps.networks.snow2(im, sigma=0.4, r_max=5, boundary_width=0)
         assert snow1.regions.max() == 97
-        dt1 = np.sqrt(pyedt.edt(im))
+        dt1 = edt(im)
         dt2 = spim.gaussian_filter(dt1, sigma=0.4)*im
         pk = ps.filters.find_peaks(dt2, r_max=5)
         pk = ps.filters.trim_saddle_points(peaks=pk, dt=dt1)
