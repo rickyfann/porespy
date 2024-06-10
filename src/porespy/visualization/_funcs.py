@@ -109,7 +109,7 @@ def satn_to_movie(im, satn, cmap='viridis',
     to view online example.
     """
     # Define nice color map
-    cmap = copy(plt.cm.get_cmap(name=cmap))
+    cmap = copy(getattr(plt.cm, cmap))
     cmap.set_over(color=c_over)
     cmap.set_under(color=c_under)
 
