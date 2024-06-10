@@ -1084,9 +1084,11 @@ def mesh_region(region: bool, strel=None, voxel_size=(1.0, 1.0, 1.0)):
         padded_mask = np.reshape(im, (1,) + im.shape)
         padded_mask = np.pad(padded_mask, pad_width=pad_width, mode='constant')
 
+    # It seems like skimage has changed marching cubes to only accept a list of
+    # spacing values with length 3, so we are checking this here.
     voxel_size = np.array(voxel_size, dtype=float, ndmin=1)
-    if np.size(voxel_size) == 1:
-        voxel_size = np.array([voxel_size for i in range(im.ndim)]).flatten()
+    if np.size(voxel_size) < 3:
+        voxel_size = np.array([voxel_size for i in range(3)]).flatten()
     verts, faces, norm, val = marching_cubes(padded_mask, spacing=voxel_size)
     result = Results()
     result.verts = verts - pad_width

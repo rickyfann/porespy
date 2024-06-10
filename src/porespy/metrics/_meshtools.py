@@ -58,9 +58,6 @@ def region_volumes(regions, mode='marching_cubes', voxel_size=(1, 1, 1)):
     slices = spim.find_objects(regions)
     vols = np.zeros([len(slices), ])
     msg = "Computing region volumes".ljust(60)
-    voxel_size = np.array(voxel_size, dtype=float, ndmin=1)
-    if np.size(voxel_size) == 1:
-        voxel_size = np.array([voxel_size for i in range(regions.ndim)]).flatten()
     for i, s in enumerate(tqdm(slices, desc=msg, **settings.tqdm)):
         region = regions[s] == (i + 1)
         if mode == 'marching_cubes':
@@ -70,7 +67,7 @@ def region_volumes(regions, mode='marching_cubes', voxel_size=(1, 1, 1)):
     return vols
 
 
-def mesh_volume(region, voxel_size=(1, 1, 1)):
+def mesh_volume(region, voxel_size=(1., 1., 1.)):
     r"""
     Compute the volume of a single region by meshing it
 
@@ -103,9 +100,6 @@ def mesh_volume(region, voxel_size=(1, 1, 1)):
         msg = 'The trimesh package can be installed with pip install trimesh'
         raise ModuleNotFoundError(msg)
 
-    voxel_size = np.array(voxel_size, dtype=float, ndmin=1)
-    if np.size(voxel_size) == 1:
-        voxel_size = np.array([voxel_size for i in range(region.ndim)]).flatten()
     mc = mesh_region(region > 0, voxel_size=voxel_size)
     m = Trimesh(vertices=mc.verts, faces=mc.faces, vertex_normals=mc.norm)
     if m.is_watertight:
@@ -170,7 +164,7 @@ def region_surface_areas(regions, voxel_size=(1, 1, 1), strel=None):
             mask_im = sub_im == i
             mesh = mesh_region(region=mask_im,
                                strel=strel,
-                               voxel_size=np.array(voxel_size, ndmin=1))
+                               voxel_size=voxel_size)
             sa[reg] = mesh_surface_area(mesh)
     result = sa
     return result
@@ -280,9 +274,6 @@ def region_interface_areas(regions, areas, voxel_size=1, strel=None):
     cn = []
     # Start extracting area from im
     msg = "Computing interfacial area between regions".ljust(60)
-    voxel_size = np.array(voxel_size, dtype=float, ndmin=1)
-    if np.size(voxel_size) == 1:
-        voxel_size = np.array([voxel_size for i in range(im.ndim)]).flatten()
     for i in tqdm(Ps, desc=msg, **settings.tqdm):
         reg = i - 1
         if slices[reg] is not None:
