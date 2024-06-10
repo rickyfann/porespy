@@ -3,14 +3,22 @@ import heapq
 import numpy as np
 import scipy.ndimage as spim
 import numpy.typing as npt
-from edt import edt
-from skimage.morphology import disk, ball
-from porespy import settings
-from porespy.tools import get_tqdm, ps_round, get_border, unpad
-from porespy.tools import _insert_disk_at_point
-from porespy.filters import trim_disconnected_blobs
 from numba import njit
 from typing import Literal, List
+from skimage.morphology import disk, ball
+from porespy import settings
+from porespy.tools import (
+    get_tqdm,
+    ps_round,
+    get_border,
+    unpad,
+    _insert_disk_at_point,
+)
+from porespy.filters import trim_disconnected_blobs
+try:
+    from pyedt import edt
+except ModuleNotFoundError:
+    from edt import edt
 
 
 __all__ = [
@@ -369,7 +377,7 @@ def pseudo_electrostatic_packing(
         dt = spim.gaussian_filter(dt, sigma=0.5)
         strel = ps_round(r, ndim=im.ndim, smooth=True)
         sites = (spim.maximum_filter(dt, footprint=strel) == dt)*(mask > 0)
-        if np.any(dt == np.inf):  # In case above method failed.
+        if np.any(dt == np.inf) or np.all(dt == dt[0]):  # In case above method failed.
             sites = np.zeros_like(im)
             inds = tuple((np.array(im.shape)/2).astype(int))
             sites[inds] = True
@@ -461,13 +469,13 @@ if __name__ == "__main__":
         sites[150, 150] = True
         im = ps.generators.pseudo_electrostatic_packing(
             shape=[300, 300],
-            r=15,
-            sites=sites,
-            maxiter=30,
-            edges='contained',
-            clearance=0,
-            smooth=False,
-            compactness=0.1,
+            r=5,
+            # sites=sites,
+            # maxiter=1000,
+            edges='extended',
+            # clearance=0,
+            # smooth=True,
+            compactness=1.0,
         )
         ax[0][0].imshow(im)
     if 1:

@@ -1,15 +1,18 @@
 import logging
 import numpy as np
 import scipy.ndimage as spim
-from scipy.special import erfc
+from numba import njit, boolean
 from skimage.segmentation import relabel_sequential
-from edt import edt
 from skimage.morphology import ball, disk
 from ._utils import Results
 try:
     from skimage.measure import marching_cubes
 except ImportError:
     from skimage.measure import marching_cubes_lewiner as marching_cubes
+try:
+    from pyedt import edt
+except ModuleNotFoundError:
+    from edt import edt
 
 
 logger = logging.getLogger(__name__)
@@ -44,6 +47,8 @@ __all__ = [
     'ps_round',
     'subdivide',
     'unpad',
+    'jit_extend_slice',
+    'pad',
 ]
 
 
@@ -696,6 +701,29 @@ def extend_slice(slices, shape, pad=1):
         a.append(slice(start, stop, None))
     return tuple(a)
 
+@njit
+def jit_extend_slice(slices, shape, pad=1):
+    shape = np.array(shape)
+    a = []
+    for i, s in enumerate(slices):
+        start = max(s.start - pad, 0)
+        stop = min(s.stop + pad, shape[i])
+        a.append(slice(start, stop, None))
+    return (a[0], a[1], a[2])
+
+@njit
+def pad(img):
+    """
+    Assumes pad width=1 and mode is constant = 0
+    """
+    w, h, d = img.shape
+    output = np.zeros((w+2, h+2, d+2), dtype=boolean)
+    for x in range(w):
+        for y in range(h):
+            for z in range(d):
+                output[x+1, y+1, z+1] = img[x, y, z]
+    return output
+
 
 def randomize_colors(im, keep_vals=[0]):
     r'''
@@ -1010,7 +1038,7 @@ def _functions_to_table(mod, colwidth=[27, 48]):
     return s
 
 
-def mesh_region(region: bool, strel=None):
+def mesh_region(region: bool, strel=None, voxel_size=(1.0, 1.0, 1.0)):
     r"""
     Creates a tri-mesh of the provided region using the marching cubes
     algorithm
@@ -1055,7 +1083,13 @@ def mesh_region(region: bool, strel=None):
     else:
         padded_mask = np.reshape(im, (1,) + im.shape)
         padded_mask = np.pad(padded_mask, pad_width=pad_width, mode='constant')
-    verts, faces, norm, val = marching_cubes(padded_mask)
+
+    # It seems like skimage has changed marching cubes to only accept a list of
+    # spacing values with length 3, so we are checking this here.
+    voxel_size = np.array(voxel_size, dtype=float, ndmin=1)
+    if np.size(voxel_size) < 3:
+        voxel_size = np.array([voxel_size for i in range(3)]).flatten()
+    verts, faces, norm, val = marching_cubes(padded_mask, spacing=voxel_size)
     result = Results()
     result.verts = verts - pad_width
     result.faces = faces
@@ -1281,7 +1315,7 @@ def insert_sphere(im, c, r, v=True, overwrite=True):
     # Generate sphere template within image boundaries
     blank = np.ones_like(im[s], dtype=float)
     blank[tuple(c - bbox[0:im.ndim])] = 0.0
-    sph = spim.distance_transform_edt(blank) < r
+    sph = edt(blank) < r
     if overwrite:  # Clear voxles under sphere to be zero
         temp = im[s] * sph > 0
         im[s][temp] = 0
@@ -1426,3 +1460,26 @@ def _check_for_singleton_axes(im):  # pragma: no cover
         logger.warning("Input image conains a singleton axis. Reduce"
                        " dimensionality with np.squeeze(im) to avoid"
                        " unexpected behavior.")
+
+@njit
+def center_of_mass(im):
+    w, h, d = im.shape
+    x_sum = y_sum = z_sum = np.int32(0)
+    x_mass = y_mass = z_mass = np.float32(0.)
+    for x in range(w):
+        for y in range(h):
+            for z in range(d):
+                val = im[x, y, z]
+                x_sum += val
+                y_sum += val
+                z_sum += val
+                x_mass += x * val
+                y_mass += y * val
+                z_mass += z * val
+
+    return np.array((
+        x_mass/x_sum,
+        y_mass/y_sum,
+        z_mass/z_sum,
+        ))
+

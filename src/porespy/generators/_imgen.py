@@ -1,20 +1,30 @@
 import logging
 import numpy as np
 import inspect as insp
-from edt import edt
-import porespy as ps
 from numba import njit
 import scipy.spatial as sptl
 import scipy.ndimage as spim
 import scipy.stats as spst
-from deprecated import deprecated
-from porespy.tools import all_to_uniform, ps_ball, ps_disk, get_border, ps_round
-from porespy.tools import extract_subsection
-from porespy.tools import insert_sphere
-from porespy.tools import _insert_disk_at_points, _insert_disk_at_points_parallel
+from porespy import metrics
 from porespy import settings
 from typing import List, Literal
+from porespy.filters import chunked_func
+from porespy.tools import (
+    all_to_uniform,
+    ps_ball,
+    ps_disk,
+    get_border,
+    extract_subsection,
+    insert_sphere,
+    get_tqdm,
+    _insert_disk_at_points,
+    _insert_disk_at_points_parallel,
+)
 import numpy.typing as npt
+try:
+    from pyedt import edt
+except ModuleNotFoundError:
+    from edt import edt
 
 
 __all__ = [
@@ -34,7 +44,7 @@ __all__ = [
 ]
 
 
-tqdm = ps.tools.get_tqdm()
+tqdm = get_tqdm()
 logger = logging.getLogger(__name__)
 
 
@@ -1040,9 +1050,9 @@ def blobs(
     im = np.random.random(shape)
     if parallel:
         overlap = max([int(s*4) for s in np.array(sigma, ndmin=1)])
-        im = ps.filters.chunked_func(func=spim.gaussian_filter,
-                                     input=im, sigma=sigma,
-                                     divs=divs, overlap=overlap)
+        im = chunked_func(func=spim.gaussian_filter,
+                          input=im, sigma=sigma,
+                          divs=divs, overlap=overlap)
     else:
         im = spim.gaussian_filter(im, sigma=sigma)
     im = all_to_uniform(im, scale=[0, 1])
@@ -1302,8 +1312,8 @@ def cylinders(
             im = im * tmp
         n_fibers_added += n_fibers
         # Update parameters for next iteration
-        porosity = ps.metrics.porosity(im)
-        vol_added = get_num_pixels(porosity)
+        eps = metrics.porosity(im)
+        vol_added = get_num_pixels(eps)
         vol_fiber = vol_added / n_fibers_added
 
     logger.debug(f"{n_fibers_added} fibers added to reach target porosity.")

@@ -1,11 +1,15 @@
 import pytest
 import numpy as np
-from edt import edt
 import porespy as ps
 import scipy.ndimage as spim
 from skimage.morphology import disk, ball, skeletonize_3d
 from skimage.util import random_noise
 from scipy.stats import norm
+try:
+    from pyedt import edt
+except ModuleNotFoundError:
+    from edt import edt
+
 
 ps.settings.tqdm['disable'] = True
 
@@ -14,12 +18,15 @@ ps.settings.tqdm['disable'] = True
 class SimulationsTest():
     def setup_class(self):
         np.random.seed(0)
-        self.im = ps.generators.blobs(shape=[100, 100, 100], blobiness=2, seed=0)
+        self.im = ps.generators.blobs(shape=[100, 100, 100],
+                                      blobiness=2,
+                                      seed=0,
+                                      porosity=0.499829)
         assert self.im.sum()/self.im.size == 0.499829
         self.im_dt = edt(self.im)
 
     def test_drainage_with_gravity(self):
-        im = ps.generators.blobs(shape=[100, 100], porosity=0.7, seed=2)
+        im = ps.generators.blobs(shape=[100, 100], porosity=0.7066, seed=2)
         assert im.sum()/im.size == 0.7066
         dt = edt(im)
         pc = -2*0.072*np.cos(np.deg2rad(180))/dt
@@ -36,7 +43,7 @@ class SimulationsTest():
 
     def test_gdd(self):
         from porespy import beta
-        im = ps.generators.blobs(shape=[100, 100, 100], porosity=0.7, seed=1)
+        im = ps.generators.blobs(shape=[100, 100, 100], porosity=0.703276, seed=1)
         assert im.sum()/im.size == 0.703276
         res = beta.tortuosity_gdd(im=im, scale_factor=3)
 
@@ -46,8 +53,7 @@ class SimulationsTest():
 
     def test_gdd_dataframe(self):
         from porespy import beta
-        np.random.seed(2)
-        im = ps.generators.blobs(shape=[100, 100, 100], porosity=0.7)
+        im = ps.generators.blobs(shape=[100, 100, 100], porosity=0.703276, seed=1)
         df = beta.chunks_to_dataframe(im=im, scale_factor=3)
         assert len(df.iloc[:, 0]) == 54
         assert df.columns[0] == 'Throat Number'
@@ -73,8 +79,9 @@ class SimulationsTest():
                                                        1.471782, 1.295077, 1.463962,
                                                        1.494004, 1.551485, 1.363379,
                                                        1.474238, 1.311737, 1.483244,
-                                                       1.287134, 1.735833, 1.38633],),
-                                                       decimal=4)
+                                                       1.287134, 1.735833, 1.38633],
+                                                      ),
+                                             decimal=4)
 
 
 if __name__ == '__main__':

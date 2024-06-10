@@ -142,7 +142,7 @@ class Settings:  # pragma: no cover
     """
     __instance__ = None
     # Might need to add 'file': sys.stdout to tqdm dict
-    tqdm = {'disable': False,
+    tqdm = {'disable': True,
             'colour': None,
             'ncols': None,
             'leave': False,
