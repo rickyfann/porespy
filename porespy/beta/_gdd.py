@@ -164,15 +164,16 @@ def analyze_blocks(im, block_size , use_dask=True):
     # determines block size, trimmed to fit in the image
     block_size = np.floor(im.shape/np.array(block_shape))
 
-    # creates the masked images - removes half of a chunk from both ends of one axis
-    x_image = im[int(block_size[0]//2): int(im.shape[0] - block_size[0] //2), :, :]
-    y_image = im[:, int(block_size[1]//2): int(im.shape[1] - block_size[1] //2), :]
-    z_image = im[:, :, int(block_size[2]//2): int(im.shape[2] - block_size[2] //2)]
-
     results = []
+    offset = int(block_size[0]/2)
 
-    # create blocks and queue them for calculation
-    for ax, tmp in enumerate((x_image, y_image, z_image)):
+    # create blocks and queues them for calculation
+    for ax in range(im.ndim):
+
+        # creates the masked images - removes half of a chunk from both ends of one axis
+        tmp = np.swapaxes(im, 0, ax)
+        tmp = tmp[offset:-offset, ...]
+        tmp = np.swapaxes(tmp, 0, ax)
         slices = tools.subdivide(tmp, block_size=block_size, mode='whole')
 
         if use_dask:
@@ -202,6 +203,25 @@ def analyze_blocks(im, block_size , use_dask=True):
     return df_out
 
 def df_to_tau(im, df):
+    """
+    Compute the tortuosity of a network populated with diffusive conductance values
+    from the given dataframe.
+
+    Parameters
+    ----------
+    df : dataframe
+        The dataframe returned by the `blocks_to_dataframe` function
+    im : ndarray
+        The boolean image of the materials with `True` indicating the void space
+    block_size : int
+        The size of the blocks used to compute the conductance values in `df`
+
+    Returns
+    -------
+    tau : list of floats
+        The tortuosity in all three principal directions
+    """
+
     block_size = df['length'][0]
     divs = block_size_to_divs(shape=im.shape, block_size=block_size)
     
