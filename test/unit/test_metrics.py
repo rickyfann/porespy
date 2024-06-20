@@ -3,11 +3,16 @@ import pytest
 import numpy as np
 import porespy as ps
 from skimage import io
-from edt import edt
 from pathlib import Path
 import scipy.ndimage as spim
 from skimage.morphology import ball
 from numpy.testing import assert_allclose
+try:
+    from pyedt import edt
+except ModuleNotFoundError:
+    from edt import edt
+
+
 ps.settings.tqdm['disable'] = True
 
 
@@ -24,8 +29,11 @@ class MetricsTest():
         self.im3D = ps.generators.lattice_spheres(shape=[51, 51, 51],
                                                   r=4, spacing=14,
                                                   lattice='cubic')
-        self.blobs = ps.generators.blobs(shape=[101, 101, 101], porosity=0.5,
-                                         blobiness=[1, 2, 3])
+        self.blobs = ps.generators.blobs(shape=[101, 101, 101],
+                                         porosity=0.500148014997559,
+                                         blobiness=[1, 2, 3],
+                                         seed=0)
+        assert self.blobs.sum()/self.blobs.size == 0.500148014997559
         path = Path(os.path.realpath(__file__),
                     '../../../test/fixtures/partitioned_regions.tif')
         self.regions = np.array(io.imread(path))
@@ -177,6 +185,9 @@ class MetricsTest():
         assert_allclose(vol_march, 4102.28678846)
         assert_allclose(vol_vox, 4169.)
 
+    def test_region_interface_areas(self):
+        pass
+
     def test_phase_fraction(self):
         im = np.reshape(np.random.randint(0, 10, 1000), [10, 10, 10])
         labels = np.unique(im, return_counts=True)[1]
@@ -200,13 +211,23 @@ class MetricsTest():
         assert np.allclose(v, [0.2, 0.3, 0.5])
 
     def test_representative_elementary_volume(self):
-        im = ps.generators.lattice_spheres(shape=[999, 999],
-                                           r=15, offset=4)
+        im = ps.generators.lattice_spheres(
+            shape=[999, 999],
+            r=15,
+            offset=4,
+            smooth=True,
+            lattice='sc',
+        )
         rev = ps.metrics.representative_elementary_volume(im)
         assert_allclose(np.average(rev.porosity), im.sum() / im.size, rtol=1e-1)
 
-        im = ps.generators.lattice_spheres(shape=[151, 151, 151],
-                                           r=9, offset=4)
+        im = ps.generators.lattice_spheres(
+            shape=[151, 151, 151],
+            r=9,
+            offset=4,
+            smooth=True,
+            lattice='sc',
+        )
         rev = ps.metrics.representative_elementary_volume(im)
         assert_allclose(np.average(rev.porosity), im.sum() / im.size, rtol=1e-1)
 
@@ -243,14 +264,16 @@ class MetricsTest():
         # assert out[1] >= 1
 
     def test_pc_curve(self):
-        im = ps.generators.blobs(shape=[100, 100], porosity=0.7)
+        im = ps.generators.blobs(shape=[100, 100], porosity=0.7026, seed=0)
+        assert im.sum()/im.size == 0.7026
         sizes = ps.filters.porosimetry(im=im)
         pc = ps.metrics.pc_curve(sizes=sizes, im=im)
         assert hasattr(pc, 'pc')
         assert hasattr(pc, 'snwp')
 
     def test_pc_curve_from_ibip(self):
-        im = ps.generators.blobs(shape=[100, 100], porosity=0.7)
+        im = ps.generators.blobs(shape=[100, 100], porosity=0.7026, seed=0)
+        assert im.sum()/im.size == 0.7026
         seq, sizes = ps.filters.ibip(im=im)
         pc = ps.metrics.pc_curve(im=im, sizes=sizes, seq=seq)
         assert hasattr(pc, 'pc')
@@ -313,7 +336,8 @@ class MetricsTest():
 
     def test_pc_map_to_pc_curve_drainage_with_trapping_and_residual(self):
         vx = 50e-6
-        im = ps.generators.blobs(shape=[200, 200], porosity=0.5, blobiness=2, seed=0)
+        im = ps.generators.blobs(shape=[200, 200], porosity=0.5088, blobiness=2, seed=0)
+        assert im.sum()/im.size == 0.5088
         mio = ps.filters.porosimetry(im)
         trapped = im*(~ps.filters.fill_blind_pores(im))
         residual = im*(~trapped)*(mio < mio.mean())
@@ -326,7 +350,8 @@ class MetricsTest():
 
     def test_pc_map_to_pc_curve_invasion_with_trapping(self):
         vx = 50e-6
-        im = ps.generators.blobs(shape=[200, 200], porosity=0.5, blobiness=2, seed=0)
+        im = ps.generators.blobs(shape=[200, 200], porosity=0.5088, blobiness=2, seed=0)
+        assert im.sum()/im.size == 0.5088
         ibip = ps.simulations.ibip(im=im)
         pc = -2*0.072*np.cos(np.radians(110))/(ibip.inv_sizes*vx)
         trapped = ibip.inv_sequence == -1
@@ -339,7 +364,8 @@ class MetricsTest():
 
     def test_pc_map_to_pc_curve_compare_invasion_to_drainage(self):
         vx = 50e-6
-        im = ps.generators.blobs(shape=[200, 200], porosity=0.6, blobiness=1, seed=0)
+        im = ps.generators.blobs(shape=[200, 200], porosity=0.6185, blobiness=1, seed=0)
+        assert im.sum()/im.size == 0.6185
         im = ps.filters.fill_blind_pores(im, conn=8, surface=True)
 
         # Do drainage without sequence
