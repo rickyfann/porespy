@@ -1,5 +1,5 @@
 import time
-from porespy import tools, settings
+from porespy import tools
 from porespy.tools import Results
 import numpy as np
 import openpnm as op
@@ -7,14 +7,14 @@ import pandas as pd
 import dask
 import edt
 
-__all__ = [
-    'tortuosity_gdd',
-    'get_block_sizes',
-    'df_to_tau',
-    'rev_tortuosity'
-    ]
 
-settings.loglevel=50
+__all__ = [
+    'tortuosity_bt',
+    'get_block_sizes',
+    'df_to_tortuosity',
+    'rev_tortuosity',
+]
+
 
 def calc_g(im, axis, solver_args={}):
     r"""
@@ -35,6 +35,11 @@ def calc_g(im, axis, solver_args={}):
     -------
     results : dataclass-like
         An object with the results of the calculation as attributes.
+
+    Notes
+    -----
+    This is intended to receive blocks of a larger image and is used by
+    `tortuosity_bt`.
     """
     from porespy.simulations import tortuosity_fd
     solver_args = {'tol': 1e-6} | solver_args
@@ -57,6 +62,7 @@ def calc_g(im, axis, solver_args={}):
     results.axis = axis
     return results
 
+
 def get_block_sizes(shape, block_size_range=[10, 100]):
     """
     Finds all viable block sizes between lower and upper limits
@@ -72,6 +78,10 @@ def get_block_sizes(shape, block_size_range=[10, 100]):
     -------
     sizes : ndarray
         All the viable block sizes in the specified range
+
+    Notes
+    -----
+    This is called by `rev_tortuosity` so it know what size blocks to use.
     """
     Lmin, Lmax = block_size_range
     a = np.ceil(min(shape)/Lmax).astype(int)
@@ -79,7 +89,8 @@ def get_block_sizes(shape, block_size_range=[10, 100]):
     block_sizes = np.unique(block_sizes[block_sizes >= Lmin])
     return block_sizes
 
-def rev_tortuosity(im, block_sizes, use_dask=True):
+
+def rev_tortuosity(im, block_sizes=None, use_dask=True):
     """
     Generates the data for creating an REV plot based on tortuosity
 
@@ -97,13 +108,15 @@ def rev_tortuosity(im, block_sizes, use_dask=True):
     df : DataFrame
         A `pandas` data frame with the properties for each block on a given row
     """
+    if block_sizes is None:
+        block_sizes =  get_block_sizes(im.shape)
     block_sizes = np.array(block_sizes, dtype=int)
     tau = []
     for s in block_sizes:
         tau.append(analyze_blocks(im, block_size=s, use_dask=use_dask))
-    
     df = pd.concat(tau)
     return df
+
 
 def block_size_to_divs(shape, block_size):
     r"""
@@ -128,8 +141,10 @@ def block_size_to_divs(shape, block_size):
     divs = np.clip(divs, a_min=2, a_max=shape)
     return divs
 
+
 def analyze_blocks(im, block_size , use_dask=True):
-    r'''Calculates the resistor network tortuosity.
+    r'''
+    Computes structural and transport properties of each block
 
     Parameters
     ----------
@@ -155,12 +170,10 @@ def analyze_blocks(im, block_size , use_dask=True):
         scale_factor = 3
         dt = edt.edt(im)
         x = min(dt.max() * scale_factor, min(np.array(im.shape)/2))
-
         block_shape = np.ones(im.ndim) * x
-    
     else:
         block_shape = np.int_(np.array(im.shape)//block_size)
-    
+
     # determines block size, trimmed to fit in the image
     block_size = np.floor(im.shape/np.array(block_shape))
 
@@ -184,10 +197,10 @@ def analyze_blocks(im, block_size , use_dask=True):
         else:
             for s in slices:
                 results.append(calc_g(tmp[s], axis=ax))
-    
+
     # collect all the results and calculate if needed
     results = np.asarray(dask.compute(results), dtype=object).flatten()
-    
+
     # format results to be returned as a single dataframe
     df_out = pd.DataFrame()
 
@@ -202,7 +215,8 @@ def analyze_blocks(im, block_size , use_dask=True):
 
     return df_out
 
-def df_to_tau(im, df):
+
+def df_to_tortuosity(im, df):
     """
     Compute the tortuosity of a network populated with diffusive conductance values
     from the given dataframe.
@@ -224,7 +238,7 @@ def df_to_tau(im, df):
 
     block_size = df['length'][0]
     divs = block_size_to_divs(shape=im.shape, block_size=block_size)
-    
+
     net = op.network.Cubic(shape=divs)
     air = op.phase.Phase(network=net)
     gx = df['g'][df['axis']==0]
@@ -238,7 +252,7 @@ def df_to_tau(im, df):
     bcs = {0: {'in': 'left', 'out': 'right'},
            1: {'in': 'front', 'out': 'back'},
            2: {'in': 'top', 'out': 'bottom'}}
-    
+
     e = np.sum(im, dtype=np.int64) / im.size
     D_AB = 1
     tau = []
@@ -257,18 +271,20 @@ def df_to_tau(im, df):
     ws = op.Workspace()
     ws.clear()
     return tau
-    
-def tortuosity_gdd(im, block_size=None, use_dask=True):
+
+
+def tortuosity_bt(im, block_size=None, use_dask=True):
     df = analyze_blocks(im, block_size, use_dask)
-    tau = df_to_tau(im, df)
+    tau = df_to_tortuosity(im, df)
     return tau
+
 
 if __name__ =="__main__":
     import porespy as ps
     import numpy as np
     np.random.seed(1)
 
-    im = ps.generators.blobs([100,100,100], blobiness=[1,2,1])
+    im = ps.generators.blobs([100, 100, 100], blobiness=[1, 2, 1])
 
-    r1 = tortuosity_gdd(im, 50, use_dask=True)
+    r1 = tortuosity_bt(im, 50, use_dask=True)
     print(r1)
