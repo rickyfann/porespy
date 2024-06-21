@@ -7,7 +7,7 @@ import pandas as pd
 import dask
 try:
     from pyedt import edt
-except:
+except ModuleNotFoundError:
     from edt import edt
 
 
