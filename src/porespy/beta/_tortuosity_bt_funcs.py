@@ -5,7 +5,10 @@ import numpy as np
 import openpnm as op
 import pandas as pd
 import dask
-import edt
+try:
+    from pyedt import edt
+except:
+    from edt import edt
 
 
 __all__ = [
@@ -13,6 +16,7 @@ __all__ = [
     'get_block_sizes',
     'df_to_tortuosity',
     'rev_tortuosity',
+    'analyze_blocks',
 ]
 
 
@@ -81,7 +85,7 @@ def get_block_sizes(shape, block_size_range=[10, 100]):
 
     Notes
     -----
-    This is called by `rev_tortuosity` so it know what size blocks to use.
+    This is called by `rev_tortuosity` to determine what size blocks to use.
     """
     Lmin, Lmax = block_size_range
     a = np.ceil(min(shape)/Lmax).astype(int)
@@ -109,7 +113,7 @@ def rev_tortuosity(im, block_sizes=None, use_dask=True):
         A `pandas` data frame with the properties for each block on a given row
     """
     if block_sizes is None:
-        block_sizes =  get_block_sizes(im.shape)
+        block_sizes = get_block_sizes(im.shape)
     block_sizes = np.array(block_sizes, dtype=int)
     tau = []
     for s in block_sizes:
@@ -142,7 +146,7 @@ def block_size_to_divs(shape, block_size):
     return divs
 
 
-def analyze_blocks(im, block_size , use_dask=True):
+def analyze_blocks(im, block_size, use_dask=True):
     r'''
     Computes structural and transport properties of each block
 
@@ -150,13 +154,11 @@ def analyze_blocks(im, block_size , use_dask=True):
     ----------
     im : np.ndarray
         The binary image to analyze with ``True`` indicating phase of interest
-
     block_size : int
         The size of the blocks to use. Only cubic blocks are supported so an integer
         must be given, or an exception is raised. If the image is not evenly
         divisible by the given `block_size` any extra voxels are removed from the
         end of each axis before all processing occcurs.
-
     use_dask : bool
         A boolean determining the usage of `dask`.
 
@@ -166,9 +168,10 @@ def analyze_blocks(im, block_size , use_dask=True):
         A `pandas` data frame with the properties for each block on a given row.
     '''
 
-    if not block_size:
+    if block_size is None:
         scale_factor = 3
-        dt = edt.edt(im)
+        dt = edt(im)
+        # TODO: Is the following supposed to be over 2 or over im.ndim?
         x = min(dt.max() * scale_factor, min(np.array(im.shape)/2))
         block_shape = np.ones(im.ndim) * x
     else:
