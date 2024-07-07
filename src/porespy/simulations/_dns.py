@@ -11,10 +11,10 @@ ws = op.Workspace()
 
 
 __all__ = ["tortuosity_fd",
-           "trim_floating_pores",
+           "check_percolating",
            "fickian_diffusion"]
 
-def trim_floating_pores(im, axis):
+def check_percolating(im, axis):
     r"""
     Trims floating pores in the specified direction
 
@@ -49,6 +49,31 @@ def trim_floating_pores(im, axis):
     return im
 
 def fickian_diffusion(im, axis, cL=1.0, cR=0.0, solver=None):
+    r"""
+    Performs Fickian Diffusion on the image in the specified direction.
+
+    Parameters
+    ----------
+    im : ndarray
+        The binary image to analyze with ``True`` indicating phase of interest
+    axis : int
+        The axis along which to apply boundary conditions
+    cL : float
+        The Dirichlet boundary condition to be applied at the inlet
+    cR : float
+        The Dirichlet boundary condition to be applied at the outlet
+    solver : bool
+        The solver to use when solving the system of linear equations
+        Defaults to `PyamgRugeStubenSolver`
+    
+    Returns
+    -------
+
+    conc: ndarray
+        The concentration map of the original image. Can be passed to
+        `tortuosity_fd` to calculate the tortuosity of the original
+        image.
+    """
 
     openpnm_v3 = op.__version__.startswith('3')
 
@@ -78,7 +103,7 @@ def fickian_diffusion(im, axis, cL=1.0, cR=0.0, solver=None):
         fd.settings.update({'solver_family': 'scipy', 'solver_type': 'cg'})
         fd.run()
     
-        # Calculate molar flow rate, effective diffusivity and tortuosity
+        # Calculate molar flow rate
     r_in = fd.rate(pores=inlets)[0]
     r_out = fd.rate(pores=outlets)[0]
     if not np.allclose(-r_out, r_in, rtol=1e-4):  # pragma: no cover
@@ -91,7 +116,7 @@ def fickian_diffusion(im, axis, cL=1.0, cR=0.0, solver=None):
     conc[net['pore.template_indices']] = fd['pore.concentration']
     conc = conc.reshape(im.shape)
 
-    return (fd, r_in, conc)
+    return (r_in, conc)
     
 
 def tortuosity_fd(im, axis, cL=1.0, cR=0.0, solver=None):
@@ -142,7 +167,7 @@ def tortuosity_fd(im, axis, cL=1.0, cR=0.0, solver=None):
 
     dC = cL - cR
 
-    fd, r_in, conc= fickian_diffusion(im, axis, cL, cR, solver)
+    r_in, conc = fickian_diffusion(im, axis, cL, cR, solver)
 
     L = im.shape[axis]
     A = np.prod(im.shape) / L
@@ -155,7 +180,18 @@ def tortuosity_fd(im, axis, cL=1.0, cR=0.0, solver=None):
     result.im = im
     result.tortuosity = tau
     result.formation_factor = 1 / Deff
-    result.porosity = eps
+    result.original_porosity = eps
     result.concentration = conc
 
     return result
+
+if __name__ == "__main__":
+    import porespy as ps
+    import numpy as np
+
+    np.random.seed(1)
+
+    im = ps.generators.blobs([100,100])
+    # result = fickian_diffusion(im, 0)
+    result = tortuosity_fd(im, 0)
+    print(result)
