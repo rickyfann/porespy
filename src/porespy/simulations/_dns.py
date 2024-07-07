@@ -116,10 +116,14 @@ def fickian_diffusion(im, axis, cL=1.0, cR=0.0, solver=None):
     conc[net['pore.template_indices']] = fd['pore.concentration']
     conc = conc.reshape(im.shape)
 
-    return (r_in, conc)
+    results = Results()
+    results.r_in = r_in
+    results.conc = conc
+
+    return (results)
     
 
-def tortuosity_fd(im, axis, cL=1.0, cR=0.0, solver=None):
+def tortuosity_fd(im, axis, r_in, cL=1.0, cR=0.0, solver=None):
     r"""
     Calculates the tortuosity of image in the specified direction.
 
@@ -167,7 +171,7 @@ def tortuosity_fd(im, axis, cL=1.0, cR=0.0, solver=None):
 
     dC = cL - cR
 
-    r_in, conc = fickian_diffusion(im, axis, cL, cR, solver)
+    # r_in, conc = fickian_diffusion(im, axis, cL, cR, solver)
 
     L = im.shape[axis]
     A = np.prod(im.shape) / L
@@ -180,8 +184,7 @@ def tortuosity_fd(im, axis, cL=1.0, cR=0.0, solver=None):
     result.im = im
     result.tortuosity = tau
     result.formation_factor = 1 / Deff
-    result.original_porosity = eps
-    result.concentration = conc
+    result.porosity = eps
 
     return result
 
@@ -192,6 +195,6 @@ if __name__ == "__main__":
     np.random.seed(1)
 
     im = ps.generators.blobs([100,100])
-    # result = fickian_diffusion(im, 0)
-    result = tortuosity_fd(im, 0)
-    print(result)
+    im_trimmed = ps.simulations.check_percolating(im, 0)
+    diffusion = ps.simulations.fickian_diffusion(im=im_trimmed, axis=0)
+    result = ps.simulations.tortuosity_fd(im_trimmed, diffusion.r_in)
