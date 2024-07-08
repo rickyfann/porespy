@@ -62,17 +62,20 @@ def fickian_diffusion(im, axis, cL=1.0, cR=0.0, solver=None):
         The Dirichlet boundary condition to be applied at the inlet
     cR : float
         The Dirichlet boundary condition to be applied at the outlet
-    solver : bool
-        The solver to use when solving the system of linear equations
-        Defaults to `PyamgRugeStubenSolver`
     
     Returns
     -------
 
-    conc: ndarray
-        The concentration map of the original image. Can be passed to
-        `tortuosity_fd` to calculate the tortuosity of the original
-        image.
+    results : Results object
+        The following values are computed and returned as attributes:
+        ======================= ===================================================
+        Attribute               Description
+        ======================= ===================================================
+        r_in                    Molar flowrate into the image from the specified axis
+        concencentration_map    The concentration map of the image calculated from
+                                Fickian diffusion
+        ======================= ===================================================
+    
     """
 
     openpnm_v3 = op.__version__.startswith('3')
@@ -118,7 +121,7 @@ def fickian_diffusion(im, axis, cL=1.0, cR=0.0, solver=None):
 
     results = Results()
     results.r_in = r_in
-    results.conc = conc
+    results.concentration_map = conc
 
     return (results)
     
@@ -133,7 +136,8 @@ def tortuosity_fd(im, axis, r_in, cL=1.0, cR=0.0, solver=None):
         The binary image to analyze with ``True`` indicating phase of interest
     axis : int
         The axis along which to apply boundary conditions
-
+    r_in : float
+        The calculated molar flowrate through the image. Can be determined from the concentraion map.
     Returns
     -------
     results : Results object
