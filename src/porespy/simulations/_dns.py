@@ -16,7 +16,8 @@ __all__ = ["tortuosity_fd",
 
 def check_percolating(im, axis):
     r"""
-    Trims floating pores in the specified direction
+    Trims floating pores in the specified direction. Throws an error if no pores
+    remain after trimming.
 
     Parameters
     ----------
@@ -40,7 +41,6 @@ def check_percolating(im, axis):
 
     # Check if porosity is changed after trimmimg floating pores
     eps = im.sum(dtype=np.int64) / im.size
-
     if not eps:
         raise Exception("No pores remain after trimming floating pores")
     if eps < eps0:  # pragma: no cover
@@ -72,7 +72,7 @@ def fickian_diffusion(im, axis, cL=1.0, cR=0.0, solver=None):
         Attribute               Description
         ======================= ===================================================
         r_in                    Molar flowrate into the image from the specified axis
-        concencentration_map    The concentration map of the image calculated from
+        c_map                   The concentration map of the image calculated from
                                 Fickian diffusion
         ======================= ===================================================
     
@@ -119,14 +119,10 @@ def fickian_diffusion(im, axis, cL=1.0, cR=0.0, solver=None):
     conc[net['pore.template_indices']] = fd['pore.concentration']
     conc = conc.reshape(im.shape)
 
-    results = Results()
-    results.r_in = r_in
-    results.concentration_map = conc
-
-    return (results)
+    return (conc)
     
 
-def tortuosity_fd(im, axis, r_in, cL=1.0, cR=0.0, solver=None):
+def tortuosity_fd(im, axis, c_map=None, cL=1.0, cR=0.0):
     r"""
     Calculates the tortuosity of image in the specified direction.
 
@@ -136,8 +132,8 @@ def tortuosity_fd(im, axis, r_in, cL=1.0, cR=0.0, solver=None):
         The binary image to analyze with ``True`` indicating phase of interest
     axis : int
         The axis along which to apply boundary conditions
-    r_in : float
-        The calculated molar flowrate through the image. Can be determined from the concentraion map.
+    c_map : float
+        The concentration map of the image. Can be obtained from `fickian_diffusion`.
     Returns
     -------
     results : Results object
@@ -146,19 +142,11 @@ def tortuosity_fd(im, axis, r_in, cL=1.0, cR=0.0, solver=None):
         =================== ===================================================
         Attribute           Description
         =================== ===================================================
+        im                  The image as provided
         tortuosity          Calculated using the ``effective_porosity`` as
                             :math:`\tau = \frac{D_{AB}}{D_{eff}} \cdot
                             \varepsilon`.
-        effective_porosity  Porosity of the image after applying
-                            ``trim_nonpercolating_paths``.  This removes
-                            disconnected voxels which cause singular matrices.
-
-        original_porosity   Porosity of the as-received the image
-
-        formation_factor    Found as :math:`D_{AB}/D_{eff}`.
-
-        concentration       An image containing the concentration values from
-                            the simulation.
+        porosity            Porosity of the as-received the image
         =================== ===================================================
 
     Examples
@@ -168,6 +156,8 @@ def tortuosity_fd(im, axis, r_in, cL=1.0, cR=0.0, solver=None):
     to view online example.
 
     """
+    from porespy.beta import tau_from_cmap
+
     if axis > (im.ndim - 1):
         raise Exception(f"'axis' must be <= {im.ndim}")
 
@@ -175,20 +165,26 @@ def tortuosity_fd(im, axis, r_in, cL=1.0, cR=0.0, solver=None):
 
     dC = cL - cR
 
-    # r_in, conc = fickian_diffusion(im, axis, cL, cR, solver)
-
     L = im.shape[axis]
     A = np.prod(im.shape) / L
-    # L-1 because BCs are put inside the domain, see issue #495
-    Deff = r_in * (L-1)/A / dC
-    tau = eps / Deff
+
+    if c_map is None:
+        tmp = fickian_diffusion(im = im,
+                                axis = axis,
+                                cL = cL,
+                                cR = cR)
+        c_map = tmp.c_map
+    
+    tau = tau_from_cmap(c = c_map,
+                        im = im,
+                        axis = axis)
 
     # Attach useful parameters to Results object
     result = Results()
     result.im = im
     result.tortuosity = tau
-    result.formation_factor = 1 / Deff
     result.porosity = eps
+    result.concentration = c_map
 
     return result
 
@@ -196,9 +192,10 @@ if __name__ == "__main__":
     import porespy as ps
     import numpy as np
 
-    np.random.seed(1)
-
-    im = ps.generators.blobs([100,100])
-    im_trimmed = ps.simulations.check_percolating(im, 0)
-    diffusion = ps.simulations.fickian_diffusion(im=im_trimmed, axis=0)
-    result = ps.simulations.tortuosity_fd(im_trimmed, diffusion.r_in)
+    np.random.seed(2)
+    im = ps.generators.overlapping_spheres([200, 200], r=10, porosity=0.65)
+    axis = 1
+    im_trimmed = ps.simulations.check_percolating(im, axis)
+    diffusion = ps.simulations.fickian_diffusion(im=im_trimmed, axis=axis)
+    result = ps.simulations.tortuosity_fd(im_trimmed, axis)
+    print(result)
