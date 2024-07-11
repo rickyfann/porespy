@@ -67,14 +67,14 @@ def calc_g(im, axis, solver_args={}):
     return results
 
 
-def get_block_sizes(shape, block_size_range=[10, 100]):
+def get_block_sizes(im, block_size_range=[10, 100]):
     """
     Finds all viable block sizes between lower and upper limits
 
     Parameters
     ----------
-    shape : sequence of int
-        The [x, y, z] size of the image
+    im : np.array
+        The binary image to analyze with ``True`` indicating phase of interest.
     block_size_range : sequence of 2 ints
         The [lower, upper] range of the desired block sizes. Default is [10, 100]
 
@@ -87,6 +87,7 @@ def get_block_sizes(shape, block_size_range=[10, 100]):
     -----
     This is called by `rev_tortuosity` to determine what size blocks to use.
     """
+    shape = im.shape
     Lmin, Lmax = block_size_range
     a = np.ceil(min(shape)/Lmax).astype(int)
     block_sizes = min(shape) // np.arange(a, 9999)  # Generate WAY more than needed
@@ -113,7 +114,7 @@ def rev_tortuosity(im, block_sizes=None, use_dask=True):
         A `pandas` data frame with the properties for each block on a given row
     """
     if block_sizes is None:
-        block_sizes = get_block_sizes(im.shape)
+        block_sizes = get_block_sizes(im)
     block_sizes = np.array(block_sizes, dtype=int)
     tau = []
     for s in block_sizes:
@@ -146,7 +147,7 @@ def block_size_to_divs(shape, block_size):
     return divs
 
 
-def analyze_blocks(im, block_size, use_dask=True):
+def analyze_blocks(im, block_size=None, method="chords", use_dask=True):
     r'''
     Computes structural and transport properties of each block
 
@@ -158,7 +159,16 @@ def analyze_blocks(im, block_size, use_dask=True):
         The size of the blocks to use. Only cubic blocks are supported so an integer
         must be given, or an exception is raised. If the image is not evenly
         divisible by the given `block_size` any extra voxels are removed from the
-        end of each axis before all processing occcurs.
+        end of each axis before all processing occcurs. Block size will be prioritized
+        if use_chords is also provided.
+    method : string
+        The method to use to determine block sizes if `block_size` is not provided.
+        
+        "chords"
+
+        "dt"
+
+
     use_dask : bool
         A boolean determining the usage of `dask`.
 
@@ -168,17 +178,34 @@ def analyze_blocks(im, block_size, use_dask=True):
         A `pandas` data frame with the properties for each block on a given row.
     '''
 
+    # determines block size, trimmed to fit in the image
     if block_size is None:
-        scale_factor = 3
-        dt = edt(im)
-        # TODO: Is the following supposed to be over 2 or over im.ndim?
-        x = min(dt.max() * scale_factor, min(np.array(im.shape)/2))
-        block_shape = np.ones(im.ndim) * x
+        if method == "chords":
+            tmp = ps.filters.apply_chords_3D(im)
+            
+            # find max chord length in each direction
+            chord_lengths = [np.max(ps.filters.region_size(tmp[tmp==i+1])) for i in range(len(im.shape))]
+            longest_chord = np.floor(np.max(chord_lengths) ** (1/3))
+            block_size = np.ones(im.ndim) * longest_chord
+
+        elif method == "dt":
+            scale_factor = 3
+            dt = edt(im)
+            # TODO: Is the following supposed to be over 2 or over im.ndim?
+            x = min(dt.max() * scale_factor, min(np.array(im.shape)/2))
+            block_size = np.ones(im.ndim) * x
+        
+        else:
+            print("Provide a valid method")
+            Exception
+
+        block_shape = np.floor(im.shape/np.array(block_size))
+        
     else:
         block_shape = np.int_(np.array(im.shape)//block_size)
-
-    # determines block size, trimmed to fit in the image
-    block_size = np.floor(im.shape/np.array(block_shape))
+    print(block_size)
+    
+# put a maximum limit on the number of blocks?
 
     results = []
     offset = int(block_size[0]/2)
@@ -226,10 +253,10 @@ def df_to_tortuosity(im, df):
 
     Parameters
     ----------
-    df : dataframe
-        The dataframe returned by the `blocks_to_dataframe` function
     im : ndarray
         The boolean image of the materials with `True` indicating the void space
+    df : dataframe
+        The dataframe returned by the `blocks_to_dataframe` function
     block_size : int
         The size of the blocks used to compute the conductance values in `df`
 
@@ -276,8 +303,27 @@ def df_to_tortuosity(im, df):
     return tau
 
 
-def tortuosity_bt(im, block_size=None, use_dask=True):
-    df = analyze_blocks(im, block_size, use_dask)
+def tortuosity_bt(im, block_size=None, method="chords", use_dask=True):
+    r"""
+    Computes the tortuosity of an image in all directions
+    
+    Parameters
+    ----------
+    im : ndarray
+        The boolean image of the materials with `True` indicating the void space
+    block_size : int
+        The size of the blocks which the image will be split into. If not provided,
+    it will be determined by the provided method in `method`
+    method : str
+        The method in which the block size will be determine automatically
+
+    "chords"
+
+    "dt"
+    use_dask : bool
+        A boolean determining the usage of `dask` for parallel processing.
+    """
+    df = analyze_blocks(im, block_size, method, use_dask)
     tau = df_to_tortuosity(im, df)
     return tau
 
@@ -287,7 +333,7 @@ if __name__ =="__main__":
     import numpy as np
     np.random.seed(1)
 
-    im = ps.generators.blobs([100, 100, 100], blobiness=[1, 2, 1])
+    im = ps.generators.blobs([200, 200, 200], blobiness=[1, 2, 1])
 
-    r1 = tortuosity_bt(im, 50, use_dask=True)
+    r1 = tortuosity_bt(im, method="chords")
     print(r1)
