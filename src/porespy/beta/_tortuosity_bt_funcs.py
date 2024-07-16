@@ -1,15 +1,16 @@
 import time
 from porespy import tools
 from porespy.tools import Results
+import logging
 import numpy as np
 import openpnm as op
 import pandas as pd
 import dask
+from dask.diagnostics import ProgressBar
 try:
     from pyedt import edt
 except ModuleNotFoundError:
     from edt import edt
-
 
 __all__ = [
     'tortuosity_bt',
@@ -48,11 +49,12 @@ def calc_g(im, axis, solver_args={}):
     from porespy.simulations import tortuosity_fd
     solver_args = {'tol': 1e-6} | solver_args
     solver = solver_args.pop('solver', None)
+    t0 = time.perf_counter()
+
     try:
         solver = op.solvers.PyamgRugeStubenSolver(**solver_args)
         results = tortuosity_fd(im=im, axis=axis, solver=solver)
     except Exception:
-        t0 = time.perf_counter()
         results = Results()
         results.effective_porosity = 0.0
         results.original_porosity = im.sum()/im.size
@@ -64,6 +66,7 @@ def calc_g(im, axis, solver_args={}):
     results.diffusive_conductance = g
     results.volume = np.prod(im.shape)
     results.axis = axis
+    results.time = time.perf_counter() - t0
     return results
 
 
@@ -163,12 +166,14 @@ def analyze_blocks(im, block_size=None, method="chords", use_dask=True):
         if use_chords is also provided.
     method : string
         The method to use to determine block sizes if `block_size` is not provided.
-        
-        "chords"
-
-        "dt"
-
-
+        =========== ==================================================================
+        method      description
+        =========== ==================================================================
+        'chords'    Uses `apply_chords_3D` from Porespy to determine the longest chord
+                    possible in the image as the length of each block.
+        'dt'        Uses the maximum length of the distance transform to determine
+                    the length of each block.
+        ========== ==================================================================
     use_dask : bool
         A boolean determining the usage of `dask`.
 
@@ -182,33 +187,23 @@ def analyze_blocks(im, block_size=None, method="chords", use_dask=True):
     if block_size is None:
         if method == "chords":
             tmp = ps.filters.apply_chords_3D(im)
-            
+
             # find max chord length in each direction
-            chord_lengths = [np.max(ps.filters.region_size(tmp[tmp==i+1])) for i in range(len(im.shape))]
-            longest_chord = np.floor(np.max(chord_lengths) ** (1/3))
-            block_size = np.ones(im.ndim) * longest_chord
+            block_size = np.int_(np.amax(ps.filters.region_size(im = tmp>0)))
+            block_size = min(block_size, min(np.array(im.shape)/2))
 
         elif method == "dt":
             scale_factor = 3
             dt = edt(im)
             # TODO: Is the following supposed to be over 2 or over im.ndim?
-            x = min(dt.max() * scale_factor, min(np.array(im.shape)/2))
-            block_size = np.ones(im.ndim) * x
+            block_size = min(dt.max() * scale_factor, min(np.array(im.shape)/2))
         
         else:
             print("Provide a valid method")
-            Exception
-
-        block_shape = np.floor(im.shape/np.array(block_size))
-        
-    else:
-        block_shape = np.int_(np.array(im.shape)//block_size)
-    print(block_size)
-    
-# put a maximum limit on the number of blocks?
+            raise Exception
 
     results = []
-    offset = int(block_size[0]/2)
+    offset = int(block_size/2)
 
     # create blocks and queues them for calculation
     for ax in range(im.ndim):
@@ -218,18 +213,18 @@ def analyze_blocks(im, block_size=None, method="chords", use_dask=True):
         tmp = tmp[offset:-offset, ...]
         tmp = np.swapaxes(tmp, 0, ax)
         slices = tools.subdivide(tmp, block_size=block_size, mode='whole')
-
         if use_dask:
-            for s in slices:
-                results.append(dask.delayed(calc_g)(tmp[s], axis=ax))
+                for s in slices:
+                    results.append(dask.delayed(calc_g)(tmp[s], axis=ax))
 
         # or do it the regular way
         else:
             for s in slices:
                 results.append(calc_g(tmp[s], axis=ax))
 
+    with ProgressBar():
     # collect all the results and calculate if needed
-    results = np.asarray(dask.compute(results), dtype=object).flatten()
+        results = np.asarray(dask.compute(results), dtype=object).flatten()
 
     # format results to be returned as a single dataframe
     df_out = pd.DataFrame()
@@ -239,7 +234,7 @@ def analyze_blocks(im, block_size=None, method="chords", use_dask=True):
     df_out['g'] = [r.diffusive_conductance for r in results]
     df_out['tau'] = [r.tortuosity for r in results]
     df_out['volume'] = [r.volume for r in results]
-    df_out['length'] = [block_size[0] for r in results]
+    df_out['length'] = [block_size for r in results]
     df_out['axis'] = [r.axis for r in results]
     df_out['time'] = [r.time for r in results]
 
@@ -266,7 +261,7 @@ def df_to_tortuosity(im, df):
         The tortuosity in all three principal directions
     """
 
-    block_size = df['length'][0]
+    block_size = list(df['length'])[0]
     divs = block_size_to_divs(shape=im.shape, block_size=block_size)
 
     net = op.network.Cubic(shape=divs)
@@ -315,11 +310,15 @@ def tortuosity_bt(im, block_size=None, method="chords", use_dask=True):
         The size of the blocks which the image will be split into. If not provided,
     it will be determined by the provided method in `method`
     method : str
-        The method in which the block size will be determine automatically
-
-    "chords"
-
-    "dt"
+        The method to use to determine block sizes if `block_size` is not provided.
+        =========== ==================================================================
+        method      description
+        =========== ==================================================================
+        'chords'    Uses `apply_chords_3D` from Porespy to determine the longest chord
+                    possible in the image as the length of each block.
+        'dt'        Uses the maximum length of the distance transform to determine
+                    the length of each block.
+        ========== ==================================================================
     use_dask : bool
         A boolean determining the usage of `dask` for parallel processing.
     """
@@ -331,9 +330,11 @@ def tortuosity_bt(im, block_size=None, method="chords", use_dask=True):
 if __name__ =="__main__":
     import porespy as ps
     import numpy as np
+    
     np.random.seed(1)
 
-    im = ps.generators.blobs([200, 200, 200], blobiness=[1, 2, 1])
-
+    im = ps.generators.blobs([100, 100, 100])
+    # df = analyze_blocks(im, method="dt")
+    # tau = df_to_tortuosity(im, df)
     r1 = tortuosity_bt(im, method="chords")
     print(r1)
