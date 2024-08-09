@@ -104,15 +104,27 @@ build-backend = "hatchling.build"
 [tool.rye]
 managed = true
 dev-dependencies = [
-    "pytest",
+    # build
     "hatch",
+    # test
+    "codecov",
+    "coverage",
+    "nbval",
+    "pytest",
+    "pytest-cache",
+    "pytest-cov",
+    "pytest-custom-exit-code",
+    "pytest-split",
+    # extras
+    "imageio",
+    "nanomesh",
     "numpy-stl",
     "pyevtk",
+    "scikit-fmm",
+    "scikit-learn",
+    "tensorflow",
     "trimesh",
-    "ipykernel",
-    "pypardiso",
-    "nbval",
-    "ruff",
+    # docs
     "mock",
     "myst-nb",
     "pandoc",
@@ -120,8 +132,12 @@ dev-dependencies = [
     "sphinx",
     "sphinx-copybutton",
     "sphinx-design",
-    "nanomesh",
-    "scikit-fmm",
+    # interactive
+    "ipython",
+    "ipykernel",
+    "ipywidgets",
+    "jupyter",
+    "jupyterlab_widgets",
 ]
 
 [tool.hatch.metadata]
