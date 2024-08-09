@@ -1,7 +1,8 @@
-import porespy as ps
-import numpy as np
-import matplotlib.pyplot as plt
 from copy import copy
+
+import matplotlib.pyplot as plt
+import numpy as np
+import porespy as ps
 
 
 def test_ibip():

@@ -1,22 +1,23 @@
 import logging
-import numpy as np
+
 import numba
-from numba import njit, prange
-from numba.typed import List, Dict
-from numba.core import types
+import numpy as np
 import scipy.ndimage as spim
+from numba import njit, prange
+from numba.core import types
+from numba.typed import Dict, List
+
 from porespy.tools import (
-    jit_extend_slice,
     center_of_mass,
-)
-from porespy.tools import (
+    create_mc_template_list,
     get_tqdm,
-    make_contiguous,
+    jit_extend_slice,
     jit_marching_cubes_area_and_volume,
     jit_marching_squares_perimeter_and_area,
-    create_mc_template_list,
+    make_contiguous,
     pad,
 )
+
 try:
     from pyedt import edt, jit_edt_cpu
 except ModuleNotFoundError:

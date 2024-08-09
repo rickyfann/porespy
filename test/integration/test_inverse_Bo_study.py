@@ -1,7 +1,8 @@
-import numpy as np
-import porespy as ps
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+import porespy as ps
+
 try:
     from pyedt import edt
 except ModuleNotFoundError:

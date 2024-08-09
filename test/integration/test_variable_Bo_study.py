@@ -1,7 +1,7 @@
-import pytest
+import matplotlib.pyplot as plt
 import numpy as np
 import porespy as ps
-import matplotlib.pyplot as plt
+import pytest
 
 
 @pytest.mark.skip(reason="Passes locally, fails on GitHub!")

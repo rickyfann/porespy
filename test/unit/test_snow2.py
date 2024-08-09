@@ -1,8 +1,9 @@
 import numpy as np
-from scipy import stats as spst
-import scipy.ndimage as spim
-import porespy as ps
 import openpnm as op
+import porespy as ps
+import scipy.ndimage as spim
+from scipy import stats as spst
+
 try:
     from pyedt import edt
 except ModuleNotFoundError:

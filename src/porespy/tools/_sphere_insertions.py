@@ -1,7 +1,6 @@
 import numpy as np
 from numba import njit, prange
 
-
 __all__ = [
     '_make_disk',
     '_make_disks',
@@ -505,6 +504,7 @@ def _make_balls(r, smooth=True):  # pragma: no cover
 
 if __name__ == "__main__":
     import numpy as np
+
     from porespy.tools import tic, toc
 
     np.random.seed(0)

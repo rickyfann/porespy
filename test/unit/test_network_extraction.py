@@ -1,11 +1,13 @@
 import os
 import sys
+from os.path import realpath
 from pathlib import Path
 from platform import system
-from os.path import realpath
-import pytest
+
 import numpy as np
 import porespy as ps
+import pytest
+
 ps.settings.tqdm['disable'] = True
 
 

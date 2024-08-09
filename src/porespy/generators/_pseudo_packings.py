@@ -1,18 +1,21 @@
 import logging
+from typing import List, Literal
+
 import numpy as np
-import scipy.ndimage as spim
 import numpy.typing as npt
+import scipy.ndimage as spim
 from numba import njit
-from typing import Literal, List
-from skimage.morphology import disk, ball
+from skimage.morphology import ball, disk
+
+from porespy.filters import trim_disconnected_blobs
 from porespy.tools import (
+    _insert_disk_at_point,
+    get_border,
     get_tqdm,
     ps_round,
-    get_border,
     unpad,
-    _insert_disk_at_point,
 )
-from porespy.filters import trim_disconnected_blobs
+
 try:
     from pyedt import edt
 except ModuleNotFoundError:
@@ -453,9 +456,10 @@ def _do_packing(im, mask, q, r, value, clearance, smooth, maxiter):
 
 
 if __name__ == "__main__":
-    import porespy as ps
     import matplotlib.pyplot as plt
     import scipy.ndimage as spim
+
+    import porespy as ps
     shape = [200, 200]
 
 

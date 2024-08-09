@@ -1,12 +1,14 @@
 import time
-from porespy import simulations, settings
-from porespy.tools import Results
+
+import dask
+import dask.delayed
+import edt
 import numpy as np
 import openpnm as op
 from pandas import DataFrame
-import dask.delayed
-import dask
-import edt
+
+from porespy import settings, simulations
+from porespy.tools import Results
 
 __all__ = ['tortuosity_gdd', 'chunks_to_dataframe']
 settings.loglevel = 50
@@ -345,8 +347,9 @@ using {im.shape[0]//3} as chunk size.")
 
 
 if __name__ =="__main__":
-    import porespy as ps
     import numpy as np
+
+    import porespy as ps
     np.random.seed(1)
     im = ps.generators.blobs(shape=[100, 100, 100], porosity=0.7)
     res = ps.simulations.tortuosity_gdd(im=im, scale_factor=3, use_dask=True)

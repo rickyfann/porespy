@@ -1,10 +1,13 @@
 import logging
+
 import numpy as np
+
 from porespy.tools import (
-    get_tqdm,
-    get_border,
     Results,
+    get_border,
+    get_tqdm,
 )
+
 try:
     from pyedt import edt
 except ModuleNotFoundError:

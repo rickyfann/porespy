@@ -1,7 +1,9 @@
-import numpy as np
-from porespy.tools import all_to_uniform
-import psutil
 from typing import Literal
+
+import numpy as np
+import psutil
+
+from porespy.tools import all_to_uniform
 
 
 def fractal_noise(

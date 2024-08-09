@@ -1,7 +1,7 @@
-import numpy as np
-import porespy as ps
 import matplotlib.pyplot as plt
+import numpy as np
 import openpnm as op
+import porespy as ps
 
 
 def test_snow_example_script():

@@ -1,6 +1,7 @@
-import pytest
 import numpy as np
 import porespy as ps
+import pytest
+
 try:
     from pyedt import edt
 except ModuleNotFoundError:

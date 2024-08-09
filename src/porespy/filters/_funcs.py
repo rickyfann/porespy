@@ -1,20 +1,30 @@
 import inspect as insp
 import logging
+import operator as op
+from typing import Literal
+
 import dask
 import numpy as np
-import operator as op
 import scipy.ndimage as spim
 from deprecated import deprecated
-from skimage.morphology import reconstruction
+from skimage.morphology import ball, cube, diamond, disk, octahedron, reconstruction, square
 from skimage.segmentation import clear_border
-from skimage.morphology import ball, disk, square, cube, diamond, octahedron
-from porespy.tools import _check_for_singleton_axes
-from porespy.tools import get_border, subdivide, recombine, make_contiguous
-from porespy.tools import unpad, extract_subsection
-from porespy.tools import ps_disk, ps_ball, ps_round
+
 from porespy import settings
-from porespy.tools import get_tqdm
-from typing import Literal
+from porespy.tools import (
+    _check_for_singleton_axes,
+    extract_subsection,
+    get_border,
+    get_tqdm,
+    make_contiguous,
+    ps_ball,
+    ps_disk,
+    ps_round,
+    recombine,
+    subdivide,
+    unpad,
+)
+
 try:
     from pyedt import edt
 except ModuleNotFoundError:

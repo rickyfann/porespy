@@ -1,12 +1,14 @@
 import os
-import pytest
+from pathlib import Path
+
 import numpy as np
 import porespy as ps
-from skimage import io
-from pathlib import Path
+import pytest
 import scipy.ndimage as spim
-from skimage.morphology import ball
 from numpy.testing import assert_allclose
+from skimage import io
+from skimage.morphology import ball
+
 try:
     from pyedt import edt
 except ModuleNotFoundError:

@@ -1,9 +1,10 @@
-import pytest
 import numpy as np
+import pandas as pd
+import porespy as ps
+import pytest
 import scipy.ndimage as spim
 import scipy.stats as spst
-import porespy as ps
-import pandas as pd
+
 ps.settings.tqdm['disable'] = True
 
 

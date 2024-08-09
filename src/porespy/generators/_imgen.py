@@ -1,26 +1,28 @@
-import logging
-import numpy as np
 import inspect as insp
-from numba import njit
-import scipy.spatial as sptl
-import scipy.ndimage as spim
-import scipy.stats as spst
-from porespy import metrics
-from porespy import settings
+import logging
 from typing import List, Literal
+
+import numpy as np
+import numpy.typing as npt
+import scipy.ndimage as spim
+import scipy.spatial as sptl
+import scipy.stats as spst
+from numba import njit
+
+from porespy import metrics, settings
 from porespy.filters import chunked_func
 from porespy.tools import (
-    all_to_uniform,
-    ps_ball,
-    ps_disk,
-    get_border,
-    extract_subsection,
-    insert_sphere,
-    get_tqdm,
     _insert_disk_at_points,
     _insert_disk_at_points_parallel,
+    all_to_uniform,
+    extract_subsection,
+    get_border,
+    get_tqdm,
+    insert_sphere,
+    ps_ball,
+    ps_disk,
 )
-import numpy.typing as npt
+
 try:
     from pyedt import edt
 except ModuleNotFoundError:

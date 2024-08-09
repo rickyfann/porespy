@@ -1,5 +1,6 @@
 import numpy as np
 import porespy as ps
+
 try:
     from pyedt import edt
 except ModuleNotFoundError:

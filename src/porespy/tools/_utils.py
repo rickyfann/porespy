@@ -1,12 +1,12 @@
+import importlib
+import inspect
 import logging
 import sys
-import numpy as np
-import importlib
-from dataclasses import dataclass
-import psutil
-import inspect
 import time
+from dataclasses import dataclass
 
+import numpy as np
+import psutil
 
 logger = logging.getLogger("porespy")
 
