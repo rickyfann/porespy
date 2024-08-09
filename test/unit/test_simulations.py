@@ -1,10 +1,7 @@
-import pytest
 import numpy as np
 import porespy as ps
-import scipy.ndimage as spim
-from skimage.morphology import disk, ball, skeletonize_3d
-from skimage.util import random_noise
-from scipy.stats import norm
+import pytest
+
 try:
     from pyedt import edt
 except ModuleNotFoundError:

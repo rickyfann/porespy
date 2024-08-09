@@ -1,13 +1,18 @@
 import logging
+
 import numpy as np
 import scipy.ndimage as spim
-from porespy.tools import extend_slice, ps_round
-from porespy.tools import _check_for_singleton_axes, Results
-from porespy.tools import mesh_region
 from skimage import measure
-from porespy.tools import get_tqdm
-from porespy import settings
 
+from porespy import settings
+from porespy.tools import (
+    Results,
+    _check_for_singleton_axes,
+    extend_slice,
+    get_tqdm,
+    mesh_region,
+    ps_round,
+)
 
 __all__ = [
     "mesh_surface_area",

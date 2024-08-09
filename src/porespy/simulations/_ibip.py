@@ -1,13 +1,15 @@
 import numpy as np
 from numba import njit
+
 from porespy import settings
 from porespy.tools import (
-    get_tqdm,
-    get_border,
-    make_contiguous,
-    _insert_disk_at_points,
     Results,
+    _insert_disk_at_points,
+    get_border,
+    get_tqdm,
+    make_contiguous,
 )
+
 try:
     from pyedt import edt
 except ModuleNotFoundError:
@@ -132,10 +134,12 @@ def _update_dt_and_bd(dt, bd, pt):
 
 
 if __name__ == "__main__":
-    import numpy as np
-    import porespy as ps
-    import matplotlib.pyplot as plt
     from copy import copy
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    import porespy as ps
 
     # %% Run this cell to regenerate the variables in drainage
     np.random.seed(6)

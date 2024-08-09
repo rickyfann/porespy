@@ -1,12 +1,14 @@
 import logging
+
 import numpy as np
 import scipy.ndimage as spim
 from pandas import DataFrame
-from porespy.tools import extract_subsection, bbox_to_slices
-from skimage.measure import mesh_surface_area
-from skimage.morphology import skeletonize_3d, ball
-from skimage.measure import regionprops
+from skimage.measure import mesh_surface_area, regionprops
 from skimage.measure._regionprops import RegionProperties
+from skimage.morphology import ball, skeletonize_3d
+
+from porespy.tools import bbox_to_slices, extract_subsection
+
 try:
     from skimage.measure import marching_cubes
 except ImportError:

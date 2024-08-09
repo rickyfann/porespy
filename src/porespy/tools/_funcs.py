@@ -1,10 +1,13 @@
 import logging
+
 import numpy as np
 import scipy.ndimage as spim
-from numba import njit, boolean
-from skimage.segmentation import relabel_sequential
+from numba import boolean, njit
 from skimage.morphology import ball, disk
+from skimage.segmentation import relabel_sequential
+
 from ._utils import Results
+
 try:
     from skimage.measure import marching_cubes
 except ImportError:
@@ -953,7 +956,7 @@ def in_hull(points, hull):
     to view online example.
 
     """
-    from scipy.spatial import Delaunay, ConvexHull
+    from scipy.spatial import ConvexHull, Delaunay
     if isinstance(hull, ConvexHull):
         hull = hull.points
     hull = Delaunay(hull)

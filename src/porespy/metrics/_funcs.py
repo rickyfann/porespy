@@ -1,17 +1,15 @@
 import logging
+
 import numpy as np
 import scipy.ndimage as spim
 import scipy.spatial as sptl
+from deprecated import deprecated
+from numba import njit
 from scipy import fft as sp_ft
 from skimage.measure import regionprops
-from deprecated import deprecated
-from porespy.tools import extend_slice
-from porespy.tools import _check_for_singleton_axes
-from porespy.tools import Results
-from porespy import settings
-from porespy.tools import get_tqdm
-from numba import njit
 
+from porespy import settings
+from porespy.tools import Results, _check_for_singleton_axes, extend_slice, get_tqdm
 
 __all__ = [
     "boxcount",
