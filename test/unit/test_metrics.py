@@ -185,9 +185,6 @@ class MetricsTest():
         assert_allclose(vol_march, 4102.28678846)
         assert_allclose(vol_vox, 4169.)
 
-    def test_region_interface_areas(self):
-        pass
-
     def test_phase_fraction(self):
         im = np.reshape(np.random.randint(0, 10, 1000), [10, 10, 10])
         labels = np.unique(im, return_counts=True)[1]

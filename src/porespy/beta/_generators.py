@@ -1,4 +1,3 @@
-import numpy as np
 from scipy.signal import convolve
 from porespy.tools import ps_rect
 

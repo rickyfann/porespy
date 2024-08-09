@@ -1,12 +1,10 @@
 import logging
-import heapq
 import numpy as np
 import scipy.ndimage as spim
 import numpy.typing as npt
 from numba import njit
 from typing import Literal, List
 from skimage.morphology import disk, ball
-from porespy import settings
 from porespy.tools import (
     get_tqdm,
     ps_round,

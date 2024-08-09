@@ -1,4 +1,3 @@
-import pytest
 import numpy as np
 from scipy import stats as spst
 import scipy.ndimage as spim

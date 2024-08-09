@@ -359,7 +359,7 @@ def reduce_peaks(peaks):
     else:
         strel = cube
     markers, N = spim.label(input=peaks, structure=strel(3))
-    inds = spim.measurements.center_of_mass(
+    inds = spim.center_of_mass(
         input=peaks, labels=markers, index=np.arange(1, N + 1)
     )
     inds = np.floor(inds).astype(int)
@@ -567,8 +567,7 @@ def trim_nearby_peaks(peaks, dt, f=1):
         from skimage.morphology import cube
 
     labels, N = spim.label(peaks > 0, structure=cube(3))
-    crds = spim.measurements.center_of_mass(peaks > 0, labels=labels,
-                                            index=np.arange(1, N + 1))
+    crds = spim.center_of_mass(peaks > 0, labels=labels, index=np.arange(1, N + 1))
     try:
         crds = np.vstack(crds).astype(int)  # Convert to numpy array of ints
     except ValueError:
