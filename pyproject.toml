@@ -41,7 +41,7 @@ dependencies = [
     "setuptools",
 ]
 readme = "README.md"
-requires-python = ">= 3.8"
+requires-python = ">= 3.10"
 
 [project.optional-dependencies]
 build = ["hatch"]
@@ -58,6 +58,15 @@ test = [
 extras = [
     "imageio",
     "nanomesh",
+    "numpy-stl",
+    "pyevtk",
+    "scikit-fmm",
+    "scikit-learn",
+    "tensorflow",
+    "trimesh",
+]
+extras-macos = [
+    "imageio",
     "numpy-stl",
     "pyevtk",
     "scikit-fmm",
