@@ -29,7 +29,7 @@ exclude = [
 ]
 
 # Same as Black.
-line-length = 95
+line-length = 92
 indent-width = 4
 
 # Assume Python 3.10
@@ -75,3 +75,7 @@ docstring-code-format = true
 # This only has an effect when the `docstring-code-format` setting is
 # enabled.
 docstring-code-line-length = "dynamic"
+
+[lint.per-file-ignores]
+"__init__.py" = ["E402", "F401", "F403"]
+"test/**" = ["F841"]
