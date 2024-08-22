@@ -1,6 +1,7 @@
 import time
 from porespy import tools
 from porespy.tools import Results
+import porespy as ps
 import logging
 import numpy as np
 import openpnm as op
