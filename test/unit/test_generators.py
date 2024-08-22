@@ -1,10 +1,12 @@
-import pytest
+import sys
+
 import numpy as np
-from numpy.testing import assert_allclose
+import pandas as pd
+import porespy as ps
+import pytest
 import scipy.ndimage as spim
 import scipy.stats as spst
-import porespy as ps
-import pandas as pd
+
 ps.settings.tqdm['disable'] = True
 
 
@@ -457,7 +459,9 @@ class GeneratorTest():
         with pytest.raises(Exception):
             ps.generators.faces(shape=[10, 10, 10])
 
-    @pytest.mark.skip(reason="Doesn't support Python 3.9+")
+    is_macOS = sys.platform == "darwin"
+
+    @pytest.mark.skipif(is_macOS, reason="'nanomesh' is not supported on MacOS")
     def test_fractal_noise_2d(self):
         try:
             s = [100, 100]
@@ -673,6 +677,7 @@ class GeneratorTest():
             dist_kwargs=dict(loc=5, scale=5))
         assert np.sum(im8) < np.sum(im7)
 
+    @pytest.mark.skip(reason="'nanomesh' doesn't support on macOS")
     def test_cylindrical_pillars_mesh(self):
         im1 = ps.generators.cylindrical_pillars_mesh(
             shape=[190, 190],

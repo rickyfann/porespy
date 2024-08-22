@@ -1,10 +1,13 @@
 import logging
+
 import numpy as np
 import scipy.ndimage as spim
-from numba import njit, boolean
-from skimage.segmentation import relabel_sequential
+from numba import boolean, njit
 from skimage.morphology import ball, disk
+from skimage.segmentation import relabel_sequential
+
 from ._utils import Results
+
 try:
     from skimage.measure import marching_cubes
 except ImportError:
@@ -995,7 +998,7 @@ def in_hull(points, hull):
     to view online example.
 
     """
-    from scipy.spatial import Delaunay, ConvexHull
+    from scipy.spatial import ConvexHull, Delaunay
     if isinstance(hull, ConvexHull):
         hull = hull.points
     hull = Delaunay(hull)
@@ -1032,7 +1035,7 @@ def all_to_uniform(im, scale=None):
     """
     if scale is None:
         scale = [im.min(), im.max()]
-    aargsort_im = np.argsort(np.argsort(im.flatten())) # twice for the inverse permutation
+    aargsort_im = np.argsort(np.argsort(im.flatten()))  # Twice for the inverse permutation
     linspace_im = np.linspace(scale[0], scale[1], len(aargsort_im), endpoint=True)
     uniform_flatten_im = linspace_im[aargsort_im]
     im = np.reshape(uniform_flatten_im, im.shape)
@@ -1524,4 +1527,3 @@ def center_of_mass(im):
         y_mass/y_sum,
         z_mass/z_sum,
         ))
-

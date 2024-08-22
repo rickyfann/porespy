@@ -1,9 +1,11 @@
 import numpy as np
 from edt import edt
 from numba import njit, prange
-from porespy.filters import trim_disconnected_blobs, pc_to_satn
+
 from porespy import settings
-from porespy.tools import get_tqdm, Results
+from porespy.filters import pc_to_satn, trim_disconnected_blobs
+from porespy.tools import Results, get_tqdm
+
 tqdm = get_tqdm()
 
 
@@ -180,10 +182,11 @@ def _insert_disks_npoints_nradii_1value_parallel(
 
 
 if __name__ == "__main__":
-    import numpy as np
-    import porespy as ps
     import matplotlib.pyplot as plt
+    import numpy as np
     from edt import edt
+
+    import porespy as ps
 
     # %%
     im = ps.generators.blobs(shape=[200, 200, 200], porosity=0.7, blobiness=1.5, seed=0)

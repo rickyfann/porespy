@@ -1,12 +1,14 @@
 import os
-import pytest
+from pathlib import Path
+
 import numpy as np
 import porespy as ps
-from skimage import io
-from pathlib import Path
+import pytest
 import scipy.ndimage as spim
-from skimage.morphology import ball
 from numpy.testing import assert_allclose
+from skimage import io
+from skimage.morphology import ball
+
 try:
     from pyedt import edt
 except ModuleNotFoundError:
@@ -184,9 +186,6 @@ class MetricsTest():
         vol_vox = ps.metrics.region_volumes(region, mode='voxel')
         assert_allclose(vol_march, 4102.28678846)
         assert_allclose(vol_vox, 4169.)
-
-    def test_region_interface_areas(self):
-        pass
 
     def test_phase_fraction(self):
         im = np.reshape(np.random.randint(0, 10, 1000), [10, 10, 10])
