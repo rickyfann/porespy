@@ -1,10 +1,12 @@
 import sys
-import porespy as ps
-import numpy as np
-import scipy.spatial as sptl
-import scipy.ndimage as spim
+
 import matplotlib.pyplot as plt
+import numpy as np
+import porespy as ps
 import pytest
+import scipy.ndimage as spim
+import scipy.spatial as sptl
+
 try:
     from pyedt import edt
 except ModuleNotFoundError:
@@ -434,8 +436,9 @@ class ToolsTest():
         assert bbox == [[15, 15, 15], [36, 36, 36]]
 
     def test_tic_toc(self):
-        from porespy.tools import tic, toc
         from time import sleep
+
+        from porespy.tools import tic, toc
         tic()
         sleep(1)
         t = toc(quiet=True)

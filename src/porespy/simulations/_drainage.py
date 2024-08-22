@@ -1,17 +1,19 @@
 import numpy as np
+
 from porespy import settings
-from porespy.metrics import pc_curve
-from porespy.tools import (
-    _insert_disks_at_points,
-    get_tqdm,
-    Results,
-)
 from porespy.filters import (
-    trim_disconnected_blobs,
     find_trapped_regions,
     pc_to_satn,
     satn_to_seq,
+    trim_disconnected_blobs,
 )
+from porespy.metrics import pc_curve
+from porespy.tools import (
+    Results,
+    _insert_disks_at_points,
+    get_tqdm,
+)
+
 try:
     from pyedt import edt
 except ModuleNotFoundError:
@@ -200,10 +202,12 @@ def drainage(im, voxel_size, pc=None, inlets=None, outlets=None, residual=None,
 
 
 if __name__ == "__main__":
-    import numpy as np
-    import porespy as ps
-    import matplotlib.pyplot as plt
     from copy import copy
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    import porespy as ps
 
     # %% Run this cell to regenerate the variables in drainage
     np.random.seed(6)

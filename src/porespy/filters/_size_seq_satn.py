@@ -1,7 +1,7 @@
 import numpy as np
-from porespy.tools import make_contiguous
 from scipy.stats import rankdata
 
+from porespy.tools import make_contiguous
 
 __all__ = [
     'size_to_seq',

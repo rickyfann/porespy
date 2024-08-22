@@ -1,18 +1,25 @@
-import dask.array as da
 import inspect as insp
 import logging
+
+import dask.array as da
 import numpy as np
-from numba import njit, prange
 import scipy.ndimage as spim
 import scipy.spatial as sptl
+from numba import njit, prange
+from skimage.morphology import cube, square
 from skimage.segmentation import watershed
-from skimage.morphology import square, cube
-from porespy.tools import _check_for_singleton_axes
-from porespy.tools import extend_slice, ps_rect, ps_round
-from porespy.tools import Results
-from porespy.tools import get_tqdm
-from porespy.filters import chunked_func
+
 from porespy import settings
+from porespy.filters import chunked_func
+from porespy.tools import (
+    Results,
+    _check_for_singleton_axes,
+    extend_slice,
+    get_tqdm,
+    ps_rect,
+    ps_round,
+)
+
 try:
     from pyedt import edt
 except ModuleNotFoundError:
@@ -359,7 +366,7 @@ def reduce_peaks(peaks):
     else:
         strel = cube
     markers, N = spim.label(input=peaks, structure=strel(3))
-    inds = spim.measurements.center_of_mass(
+    inds = spim.center_of_mass(
         input=peaks, labels=markers, index=np.arange(1, N + 1)
     )
     inds = np.floor(inds).astype(int)
@@ -567,8 +574,7 @@ def trim_nearby_peaks(peaks, dt, f=1):
         from skimage.morphology import cube
 
     labels, N = spim.label(peaks > 0, structure=cube(3))
-    crds = spim.measurements.center_of_mass(peaks > 0, labels=labels,
-                                            index=np.arange(1, N + 1))
+    crds = spim.center_of_mass(peaks > 0, labels=labels, index=np.arange(1, N + 1))
     try:
         crds = np.vstack(crds).astype(int)  # Convert to numpy array of ints
     except ValueError:

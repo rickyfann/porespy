@@ -1,6 +1,6 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import porespy as ps
-import matplotlib.pyplot as plt
 
 
 def test_drainage_from_top():

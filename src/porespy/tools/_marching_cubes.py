@@ -1,12 +1,12 @@
-import os
-import math
 import itertools
+import math
+import os
 from pathlib import Path
-from numba import njit
-import numpy as np
-from skimage import measure
-from scipy import spatial
 
+import numpy as np
+from numba import njit
+from scipy import spatial
+from skimage import measure
 
 MC_TEMPLATES_FILENAME = 'marching_cubes_templates.dat'
 THIS_FOLDER = Path(__file__).absolute().parent
