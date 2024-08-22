@@ -1,4 +1,5 @@
 import time
+import porespy as ps
 from porespy import tools
 from porespy.tools import Results
 import logging
