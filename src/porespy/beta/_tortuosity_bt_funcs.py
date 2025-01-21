@@ -3,7 +3,6 @@ import porespy as ps
 from porespy import tools
 from porespy.tools import Results
 import porespy as ps
-import logging
 import numpy as np
 import openpnm as op
 import pandas as pd
@@ -20,6 +19,9 @@ __all__ = [
     'df_to_tortuosity',
     'rev_tortuosity',
     'analyze_blocks',
+    'rev_plot',
+    'block_size_to_divs',
+    'calc_g'
 ]
 
 
@@ -127,6 +129,50 @@ def rev_tortuosity(im, block_sizes=None, use_dask=True):
     df = pd.concat(tau)
     return df
 
+def rev_plot(df, size, figsize = [10,7]):
+    '''
+    Creates REV plot from the output of `rev_tortuosity`.
+    
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The output of `rev_tortuosity`.
+    size : int
+        The length of one side of the cube image.
+
+    Returns
+    -------
+
+    fig : matplotlib.pyplot.figure
+
+    axes : matplotlib.pyplot.axes
+    '''
+
+    import matplotlib.pyplot as plt
+    ps.visualization.set_mpl_style()
+
+    for i, axis in enumerate(np.unique(df['axis'])):
+        fig, axes = plt.subplots(figsize=figsize)
+        tmp = df.loc[df['axis']==axis]
+
+        data = []
+        vol_frac = []
+
+        for vol in np.unique(tmp['volume']):
+            tmp2 = tmp.loc[tmp['volume']==vol]["tau"]
+            taus = np.copy(tmp2)
+            second_largest = np.unique(tmp2)[-2]
+            taus[tmp2==np.inf] = second_largest
+
+            data.append(np.log10(taus))
+            vol_frac.append(np.log10(vol / (size**3)))
+
+        axes.violinplot(data, vol_frac, widths=0.1)
+        axes.set_title(f"REV: Axis {axis}")
+        axes.set_xlabel("Normalized Volume Fraction")
+        axes.set_ylabel(r"log$_{10}$($\tau$)")
+
+    return fig, axes
 
 def block_size_to_divs(shape, block_size):
     r"""
@@ -152,7 +198,7 @@ def block_size_to_divs(shape, block_size):
     return divs
 
 
-def analyze_blocks(im, block_size=None, method="chords", use_dask=True):
+def analyze_blocks(im, block_size=None, method="chords", use_dask=True, trim=False):
     r'''
     Computes structural and transport properties of each block
 
@@ -185,6 +231,20 @@ def analyze_blocks(im, block_size=None, method="chords", use_dask=True):
         A `pandas` data frame with the properties for each block on a given row.
     '''
 
+    # trimming non-percolating paths
+    if trim:
+        for ax in range(im.ndim):
+            inlets = np.zeros_like(im)
+            inlets = np.swapaxes(inlets, 0, ax)
+            inlets[0, ...] = True
+            inlets = np.swapaxes(inlets, 0, ax)
+
+            outlets = np.swapaxes(inlets, 0, ax)
+            outlets = np.zeros_like(im)
+            outlets[-1, ...] = True
+            outlets = np.swapaxes(inlets, 0, ax)
+            im = ps.filters.trim_nonpercolating_paths(im=im, inlets=inlets, outlets=outlets)
+
     # determines block size, trimmed to fit in the image
     if block_size is None:
         if method == "chords":
@@ -198,6 +258,73 @@ def analyze_blocks(im, block_size=None, method="chords", use_dask=True):
             scale_factor = 3
             dt = edt(im)
             # TODO: Is the following supposed to be over 2 or over im.ndim?
+            block_size = min(dt.max() * scale_factor, min(np.array(im.shape)/2))
+        
+        else:
+            print("Provide a valid method")
+            raise Exception
+
+    results = []
+    all_slices = []
+    offset = int(block_size/2)
+
+    # create blocks and queues them for calculation
+    for ax in range(im.ndim):
+
+        # creates the masked images - removes half of a chunk from both ends of one axis
+        tmp = np.swapaxes(im, 0, ax)
+        tmp = tmp[offset:-offset, ...]
+        tmp = np.swapaxes(tmp, 0, ax)
+        slices = tools.subdivide(tmp, block_size=block_size, mode='whole')
+        if use_dask:
+                for s in slices:
+                    results.append(dask.delayed(calc_g)(tmp[s], axis=ax))
+
+                    # TODO: s needs to be modified with the correct offset
+                    all_slices.append(s)
+
+        # or do it the regular way
+        else:
+            for s in slices:
+                results.append(calc_g(tmp[s], axis=ax))
+                all_slices.append(s)
+
+    with ProgressBar():
+    # collect all the results and calculate if needed
+        results = np.asarray(dask.compute(results), dtype=object).flatten()
+
+    # format results to be returned as a single dataframe
+    df_out = pd.DataFrame()
+
+    df_out['eps_orig'] = [r.original_porosity for r in results]
+    df_out['eps_perc'] = [r.effective_porosity for r in results]
+    df_out['g'] = [r.diffusive_conductance for r in results]
+    df_out['tau'] = [r.tortuosity for r in results]
+    df_out['volume'] = [r.volume for r in results]
+    df_out['length'] = [block_size for r in results]
+    df_out['axis'] = [r.axis for r in results]
+    df_out['time'] = [r.time for r in results]
+    df_out['slice'] = [s for s in all_slices]
+
+    return df_out
+
+#  TODO: finish this function
+def meta_analyze_blocks(big_im, meta_block_size=None, block_size=None, method="chords", use_dask=True):
+    # determines block size, trimmed to fit in the image
+    if meta_block_size is None:
+        meta_block_size = (big_im.shape[0]//2)
+        
+    if block_size is None:
+        if method == "chords":
+            tmp = ps.filters.apply_chords_3D(im)
+
+            # find max chord length in each direction
+            block_size = np.int_(np.amax(ps.filters.region_size(im = tmp>0)))
+            block_size = min(block_size, min(np.array(im.shape)/2))
+
+        elif method == "dt":
+            scale_factor = 3
+            dt = edt(im)
             block_size = min(dt.max() * scale_factor, min(np.array(im.shape)/2))
         
         else:
@@ -242,7 +369,6 @@ def analyze_blocks(im, block_size=None, method="chords", use_dask=True):
 
     return df_out
 
-
 def df_to_tortuosity(im, df):
     """
     Compute the tortuosity of a network populated with diffusive conductance values
@@ -268,11 +394,13 @@ def df_to_tortuosity(im, df):
 
     net = op.network.Cubic(shape=divs)
     air = op.phase.Phase(network=net)
-    gx = df['g'][df['axis']==0]
-    gy = df['g'][df['axis']==1]
-    gz = df['g'][df['axis']==2]
 
-    g = np.hstack([gz, gy, gx])
+    tmp = []
+
+    for ax in np.unique(df['axis']):
+        tmp.append(df['g'][df['axis']==ax])
+
+    g = np.hstack(tmp)
 
     air['throat.diffusive_conductance'] = g
 
@@ -291,8 +419,8 @@ def df_to_tortuosity(im, df):
         fick.run()
         rate_inlet = fick.rate(pores=net.pores(bcs[ax]['in']))[0]
         L = (divs[ax] - 1) * block_size
-        A = (np.prod(divs) / divs[ax]) * (block_size**2)
-        D_eff = rate_inlet * L / (A * (1 - 0))
+        A = (np.prod(im.shape) / im.shape[ax])
+        D_eff = rate_inlet * (L - 1) / (A * (1 - 0))
         tau.append(e * D_AB / D_eff)
 
     ws = op.Workspace()
@@ -336,7 +464,9 @@ if __name__ =="__main__":
     np.random.seed(1)
 
     im = ps.generators.blobs([100, 100, 100])
-    # df = analyze_blocks(im, method="dt")
-    # tau = df_to_tortuosity(im, df)
     r1 = tortuosity_bt(im, method="chords")
+    direct1 = ps.simulations.tortuosity_fd(im, 0)
+    direct2 = ps.simulations.tortuosity_fd(im, 1)
+    direct3 = ps.simulations.tortuosity_fd(im, 2)
     print(r1)
+    print(direct1, direct2, direct3)
