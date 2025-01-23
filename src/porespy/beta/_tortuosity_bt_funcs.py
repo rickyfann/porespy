@@ -231,63 +231,67 @@ def analyze_blocks(im, block_size=None, method="chords", use_dask=True, trim=Fal
         A `pandas` data frame with the properties for each block on a given row.
     '''
 
-    # trimming non-percolating paths
-    if trim:
-        for ax in range(im.ndim):
-            inlets = np.zeros_like(im)
-            inlets = np.swapaxes(inlets, 0, ax)
-            inlets[0, ...] = True
-            inlets = np.swapaxes(inlets, 0, ax)
+    # # trimming non-percolating paths
+    # if trim:
+    #     for ax in range(im.ndim):
+    #         inlets = np.zeros_like(im)
+    #         inlets = np.swapaxes(inlets, 0, ax)
+    #         inlets[0, ...] = True
+    #         inlets = np.swapaxes(inlets, 0, ax)
 
-            outlets = np.swapaxes(inlets, 0, ax)
-            outlets = np.zeros_like(im)
-            outlets[-1, ...] = True
-            outlets = np.swapaxes(inlets, 0, ax)
-            im = ps.filters.trim_nonpercolating_paths(im=im, inlets=inlets, outlets=outlets)
+    #         outlets = np.swapaxes(inlets, 0, ax)
+    #         outlets = np.zeros_like(im)
+    #         outlets[-1, ...] = True
+    #         outlets = np.swapaxes(inlets, 0, ax)
+    #         im = ps.filters.trim_nonpercolating_paths(im=im, inlets=inlets, outlets=outlets)
 
-    # determines block size, trimmed to fit in the image
-    if block_size is None:
-        if method == "chords":
-            tmp = ps.filters.apply_chords_3D(im)
+    # # determines block size, trimmed to fit in the image
+    # if block_size is None:
+    #     if method == "chords":
+    #         tmp = ps.filters.apply_chords_3D(im)
 
-            # find max chord length in each direction
-            block_size = np.int_(np.amax(ps.filters.region_size(im = tmp>0)))
-            block_size = min(block_size, min(np.array(im.shape)/2))
+    #         # find max chord length in each direction
+    #         block_size = np.int_(np.amax(ps.filters.region_size(im = tmp>0)))
+    #         block_size = min(block_size, min(np.array(im.shape)/2))
 
-        elif method == "dt":
-            scale_factor = 3
-            dt = edt(im)
-            # TODO: Is the following supposed to be over 2 or over im.ndim?
-            block_size = min(dt.max() * scale_factor, min(np.array(im.shape)/2))
+    #     elif method == "dt":
+    #         scale_factor = 3
+    #         dt = edt(im)
+    #         # TODO: Is the following supposed to be over 2 or over im.ndim?
+    #         block_size = min(dt.max() * scale_factor, min(np.array(im.shape)/2))
         
-        else:
-            print("Provide a valid method")
-            raise Exception
+    #     else:
+    #         print("Provide a valid method")
+    #         raise Exception
 
     results = []
-    all_slices = []
+    # all_slices = []
     offset = int(block_size/2)
 
     # create blocks and queues them for calculation
     for ax in range(im.ndim):
 
         # creates the masked images - removes half of a chunk from both ends of one axis
-        tmp = np.swapaxes(im, 0, ax)
-        tmp = tmp[offset:-offset, ...]
-        tmp = np.swapaxes(tmp, 0, ax)
-        slices = tools.subdivide(tmp, block_size=block_size, mode='whole')
+        # tmp = np.swapaxes(im, 0, ax)
+        # tmp = tmp[offset:-offset, ...]
+        # tmp = np.swapaxes(tmp, 0, ax)
+        slices = tools.subdivide(im, block_size=block_size, mode='whole')
         if use_dask:
                 for s in slices:
-                    results.append(dask.delayed(calc_g)(tmp[s], axis=ax))
+                    tmp = dask.delayed(calc_g)(im[s], axis=ax) / 2
+                    results.append(tmp)
+                    results.append(tmp)
 
                     # TODO: s needs to be modified with the correct offset
-                    all_slices.append(s)
+                    # all_slices.append(s)
 
         # or do it the regular way
         else:
             for s in slices:
-                results.append(calc_g(tmp[s], axis=ax))
-                all_slices.append(s)
+                tmp = calc_g(im[s], axis=ax) / 2
+                results.append(tmp)
+                results.append(tmp)
+                # all_slices.append(s)
 
     with ProgressBar():
     # collect all the results and calculate if needed
@@ -304,7 +308,7 @@ def analyze_blocks(im, block_size=None, method="chords", use_dask=True, trim=Fal
     df_out['length'] = [block_size for r in results]
     df_out['axis'] = [r.axis for r in results]
     df_out['time'] = [r.time for r in results]
-    df_out['slice'] = [s for s in all_slices]
+    # df_out['slice'] = [s for s in all_slices]
 
     return df_out
 
