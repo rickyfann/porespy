@@ -17,6 +17,7 @@ from .tools._utils import Settings as _Settings
 settings = _Settings()
 
 from . import tools
+from . import beta
 from . import filters
 from . import metrics
 from . import networks

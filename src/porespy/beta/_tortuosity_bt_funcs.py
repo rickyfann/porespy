@@ -134,7 +134,7 @@ def rev_tortuosity(im, block_sizes=None, use_dask=True):
     df = pd.concat(tau)
     return df
 
-def rev_plot(df, size, figsize = [10,7]):
+def rev_plot(df, size, figsize=[10,7], style='violin'):
     '''
     Creates REV plot from the output of `rev_tortuosity`.
     
@@ -146,6 +146,8 @@ def rev_plot(df, size, figsize = [10,7]):
         The length of one side of the cube image.
     fig_size : list
         The size of the figure to be outputted. Default to [10,7].
+    style : str
+        The style of plot to be outputted. Default to `violin`.
 
     Returns
     -------
