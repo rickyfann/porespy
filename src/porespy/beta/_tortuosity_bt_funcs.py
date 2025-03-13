@@ -2,6 +2,7 @@ import time
 import porespy as ps
 from porespy import tools
 from porespy.tools import Results
+import logging
 import porespy as ps
 import numpy as np
 import openpnm as op
@@ -12,6 +13,7 @@ try:
     from pyedt import edt
 except ModuleNotFoundError:
     from edt import edt
+
 
 __all__ = [
     'tortuosity_bt',
@@ -24,6 +26,7 @@ __all__ = [
     'calc_g'
 ]
 
+logger = logging.getLogger(__name__)
 
 def calc_g(im, axis, solver_args={}):
     r"""
@@ -62,6 +65,7 @@ def calc_g(im, axis, solver_args={}):
         results = Results()
         results.effective_porosity = 0.0
         results.original_porosity = im.sum()/im.size
+        results.diffusive_conductance = 0.001
         results.tortuosity = np.inf
         results.time = time.perf_counter() - t0
     L = im.shape[axis]
@@ -125,6 +129,7 @@ def rev_tortuosity(im, block_sizes=None, use_dask=True):
     block_sizes = np.array(block_sizes, dtype=int)
     tau = []
     for s in block_sizes:
+        logging.info(f"Analyzing block size of {s}:")
         tau.append(analyze_blocks(im, block_size=s, use_dask=use_dask))
     df = pd.concat(tau)
     return df
@@ -139,6 +144,8 @@ def rev_plot(df, size, figsize = [10,7]):
         The output of `rev_tortuosity`.
     size : int
         The length of one side of the cube image.
+    fig_size : list
+        The size of the figure to be outputted. Default to [10,7].
 
     Returns
     -------
@@ -150,6 +157,9 @@ def rev_plot(df, size, figsize = [10,7]):
 
     import matplotlib.pyplot as plt
     ps.visualization.set_mpl_style()
+
+    all_fig = []
+    all_ax = []
 
     for i, axis in enumerate(np.unique(df['axis'])):
         fig, axes = plt.subplots(figsize=figsize)
@@ -171,8 +181,11 @@ def rev_plot(df, size, figsize = [10,7]):
         axes.set_title(f"REV: Axis {axis}")
         axes.set_xlabel("Normalized Volume Fraction")
         axes.set_ylabel(r"log$_{10}$($\tau$)")
+        
+        all_fig.append(fig)
+        all_ax.append(axes)
 
-    return fig, axes
+    return all_fig, all_ax
 
 def block_size_to_divs(shape, block_size):
     r"""
@@ -266,7 +279,7 @@ def analyze_blocks(im, block_size=None, method="chords", use_dask=True, trim=Fal
 
     results = []
     # all_slices = []
-    offset = int(block_size/2)
+    # offset = int(block_size/2)
 
     # create blocks and queues them for calculation
     for ax in range(im.ndim):
@@ -278,8 +291,8 @@ def analyze_blocks(im, block_size=None, method="chords", use_dask=True, trim=Fal
         slices = tools.subdivide(im, block_size=block_size, mode='whole')
         if use_dask:
                 for s in slices:
-                    tmp = dask.delayed(calc_g)(im[s], axis=ax) / 2
-                    results.append(tmp)
+                    tmp = dask.delayed(calc_g)(im[s], axis=ax)
+                    # results.append(tmp)
                     results.append(tmp)
 
                     # TODO: s needs to be modified with the correct offset
@@ -288,8 +301,8 @@ def analyze_blocks(im, block_size=None, method="chords", use_dask=True, trim=Fal
         # or do it the regular way
         else:
             for s in slices:
-                tmp = calc_g(im[s], axis=ax) / 2
-                results.append(tmp)
+                tmp = calc_g(im[s], axis=ax)
+                # results.append(tmp)
                 results.append(tmp)
                 # all_slices.append(s)
 
@@ -309,67 +322,6 @@ def analyze_blocks(im, block_size=None, method="chords", use_dask=True, trim=Fal
     df_out['axis'] = [r.axis for r in results]
     df_out['time'] = [r.time for r in results]
     # df_out['slice'] = [s for s in all_slices]
-
-    return df_out
-
-#  TODO: finish this function
-def meta_analyze_blocks(big_im, meta_block_size=None, block_size=None, method="chords", use_dask=True):
-    # determines block size, trimmed to fit in the image
-    if meta_block_size is None:
-        meta_block_size = (big_im.shape[0]//2)
-        
-    if block_size is None:
-        if method == "chords":
-            tmp = ps.filters.apply_chords_3D(im)
-
-            # find max chord length in each direction
-            block_size = np.int_(np.amax(ps.filters.region_size(im = tmp>0)))
-            block_size = min(block_size, min(np.array(im.shape)/2))
-
-        elif method == "dt":
-            scale_factor = 3
-            dt = edt(im)
-            block_size = min(dt.max() * scale_factor, min(np.array(im.shape)/2))
-        
-        else:
-            print("Provide a valid method")
-            raise Exception
-
-    results = []
-    offset = int(block_size/2)
-
-    # create blocks and queues them for calculation
-    for ax in range(im.ndim):
-
-        # creates the masked images - removes half of a chunk from both ends of one axis
-        tmp = np.swapaxes(im, 0, ax)
-        tmp = tmp[offset:-offset, ...]
-        tmp = np.swapaxes(tmp, 0, ax)
-        slices = tools.subdivide(tmp, block_size=block_size, mode='whole')
-        if use_dask:
-                for s in slices:
-                    results.append(dask.delayed(calc_g)(tmp[s], axis=ax))
-
-        # or do it the regular way
-        else:
-            for s in slices:
-                results.append(calc_g(tmp[s], axis=ax))
-
-    with ProgressBar():
-    # collect all the results and calculate if needed
-        results = np.asarray(dask.compute(results), dtype=object).flatten()
-
-    # format results to be returned as a single dataframe
-    df_out = pd.DataFrame()
-
-    df_out['eps_orig'] = [r.original_porosity for r in results]
-    df_out['eps_perc'] = [r.effective_porosity for r in results]
-    df_out['g'] = [r.diffusive_conductance for r in results]
-    df_out['tau'] = [r.tortuosity for r in results]
-    df_out['volume'] = [r.volume for r in results]
-    df_out['length'] = [block_size for r in results]
-    df_out['axis'] = [r.axis for r in results]
-    df_out['time'] = [r.time for r in results]
 
     return df_out
 
@@ -467,10 +419,11 @@ if __name__ =="__main__":
     
     np.random.seed(1)
 
-    im = ps.generators.blobs([100, 100, 100])
+    # im = ps.generators.blobs([100, 100, 100])
+    im = ps.generators.blobs([100, 100])
     r1 = tortuosity_bt(im, method="chords")
     direct1 = ps.simulations.tortuosity_fd(im, 0)
     direct2 = ps.simulations.tortuosity_fd(im, 1)
-    direct3 = ps.simulations.tortuosity_fd(im, 2)
+    # direct3 = ps.simulations.tortuosity_fd(im, 2)
     print(r1)
-    print(direct1, direct2, direct3)
+    print(direct1, direct2)
