@@ -108,12 +108,13 @@ def porosity_map(im, block_size, dask_on=True):
         
         results.append(
             {'slice' : s,
-             'porosity' : poro_obj.compute()}
+             'eps_orig' : poro_obj.compute()}
         )
 
     df_out = pd.DataFrame()
     df_out['slice'] = [r['slice'] for r in results]
-    df_out['porosity'] = [r['porosity'] for r in results]
+    df_out['eps_orig'] = [r['eps_orig'] for r in results]
+    df_out['axis'] = [0 for r in results]
 
     return df_out
 
@@ -161,7 +162,7 @@ def plot_map(im, df, mode='porosity', cmap=None):
         print(axis)
         tmp_df = df.loc[df['axis']==axis]
 
-        tmp = np.zeros_like(im, np.float_)
+        tmp = np.zeros_like(im, np.float64)
         for s, v in zip(tmp_df['slice'], tmp_df[mode]):
             tmp[s] = v
         
@@ -171,9 +172,28 @@ def plot_map(im, df, mode='porosity', cmap=None):
         plt.imshow(tmp, cmap=cmap, alpha=0.5)
         plt.colorbar(label=mode.upper())
         figs.append(fig)
-        axs.append(axs)
+        axs.append(ax)
 
     return figs, axs
+
+def plot_df(im, df, x, y):
+    figs, axes = [], []
+    for i, axis in enumerate(np.unique(df['axis'])):
+
+        f = df[y] != 0
+
+        fig, ax = plt.subplots()
+        plt.sca(ax)
+        plt.plot(df[x][f], df[y][f], '.')
+        plt.title(f"{y.capitalize()} vs {x.capitalize()} : Axis {i}")
+        plt.xlabel(f"{x.capitalize()}")
+        plt.ylabel(f"{y.capitalize()}")
+        plt.show()
+        
+        figs.append(fig)
+        axes.append(ax)
+    
+    return figs, axes
 
 if __name__ == "__main__":
     im = ps.generators.blobs([1000] * 2, porosity=0.7, seed=1)
@@ -181,7 +201,16 @@ if __name__ == "__main__":
     # plots = plot_map(im, result, mode='tau')
 
     im2 = fill_all_caverns(im)
-    plot_ims(im2)
+
+    a = tortuosity_map(im, 100)
+    b = tortuosity_map(im2[-1], 100)
+
+    q = plot_df(im, a, 'eps_orig', 'g')
+    f = b['g'] != 0
+    plt.sca(q[1][0])
+    plt.plot(b['eps_orig'][f], b['g'][f], 'r.', alpha=0.5)
+    plt.show()
+
     # im2[-1]
     # plots = plot_ims(im2)
     # result2 = tortuosity_map(im2[-1], 250,)
