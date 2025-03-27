@@ -21,6 +21,8 @@ def plot_slices(im, N):
         ax.axis(False)
         ax.imshow(s)
     
+    return fig, axes
+    
 ps.settings.loglevel=50
 
 def fill_caverns(im, axis=0):
@@ -79,7 +81,7 @@ def plot_ims(im_list, figsize=[10,7]):
 
     return fig, axes
 
-def tortuosity_ris(im, N):
+def tortuosity_ris(im, N, axis):
     # Now do resistors in series
     step = N
     ims = []
@@ -89,10 +91,30 @@ def tortuosity_ris(im, N):
     taus = []
     Deffs = []
     for i, s in enumerate(ims):
-        taus.append(ps.simulations.tortuosity_fd(s, axis=1))
+        taus.append(ps.simulations.tortuosity_fd(s, axis=axis))
         Deffs.append(taus[i].effective_porosity/taus[i].tortuosity)
     Deff = (im.shape[1]-1)/np.sum(1/(np.array(Deffs)/step))
-    return Deff
+    return Deff, taus
+
+def tortuosity_profile(im, N, axis=1,):
+    ris = tortuosity_ris(im, N-1, axis)
+    tau = [obj.tortuosity for obj in ris[1]]
+    x_vals = np.arange(0, 1001, N-1)
+
+    fig, ax = plt.subplots(figsize=[10,7])
+
+    for i, (t, x1, x2) in enumerate(zip(tau, x_vals[:-1], x_vals[1:])):
+        ax.hlines(t, xmin=x1, xmax=x2)
+
+    for i, (t1, t2, x) in enumerate(zip(tau[:-1], tau[1:], x_vals[1:-1])):
+        ax.vlines(x, ymin=t1, ymax=t2)
+    
+    plt.xlim([x_vals[0], x_vals[-1]])
+    plt.xlabel("x-domain")
+    plt.ylabel("Tortuosity")
+    plt.title("Tortuosity Distribution")
+
+    return fig, ax
 
 def porosity_map(im, block_size, dask_on=True):
 
@@ -176,40 +198,61 @@ def plot_map(im, df, mode='porosity', cmap=None):
 
     return figs, axs
 
-def plot_df(im, df, x, y):
+def plot_df(im, df, x, y, label, passthrough=False, mode="dot",fig=None, ax=None,):
     figs, axes = [], []
-    for i, axis in enumerate(np.unique(df['axis'])):
 
-        f = df[y] != 0
+    # for i, axis in enumerate(np.unique(df['axis'])):
 
-        fig, ax = plt.subplots()
-        plt.sca(ax)
-        plt.plot(df[x][f], df[y][f], '.')
-        plt.title(f"{y.capitalize()} vs {x.capitalize()} : Axis {i}")
-        plt.xlabel(f"{x.capitalize()}")
-        plt.ylabel(f"{y.capitalize()}")
-        plt.show()
-        
-        figs.append(fig)
-        axes.append(ax)
+    f = df[y] != 0
     
-    return figs, axes
+    if not passthrough:
+        fig, ax = plt.subplots()
+
+    plt.sca(ax)
+    if mode == "dot":
+        plt.plot(df[x][f], df[y][f], '.', label=label, alpha=0.5)
+    
+    elif mode == "hex":
+        # plt.hexbin(df[x][f], df[y][f], label=label)
+
+        ny = 10
+        nx = int(np.sqrt(3)*ny)
+        plt.hexbin(np.log10(df[x][f]), \
+                   np.log10(df[y][f]), 
+                   gridsize=[nx, ny],
+                #    extent=[min(np.log10(df[x][f])), max(np.log10(df[x][f])), min(np.log10(df[y][f])), max(np.log10(df[y][f]))],
+                   cmap='GnBu', 
+                   label=label)
+    plt.title(f"{y.capitalize()} vs {x.capitalize()}")
+    plt.xlabel(f"{x.capitalize()}")
+    plt.ylabel(f"{y.capitalize()}")
+
+    if not passthrough:
+        plt.show()
+    
+    figs.append(fig)
+    axes.append(ax)
+    
+    if passthrough:
+        return fig, ax
+    else:
+        return figs, axes
 
 if __name__ == "__main__":
-    im = ps.generators.blobs([1000] * 2, porosity=0.7, seed=1)
+    im = ps.generators.blobs([100] * 2, porosity=0.7, seed=1)
     # result = tortuosity_map(im, 50,)
     # plots = plot_map(im, result, mode='tau')
 
     im2 = fill_all_caverns(im)
 
-    a = tortuosity_map(im, 100)
-    b = tortuosity_map(im2[-1], 100)
+    a = tortuosity_map(im, 20)
+    b = tortuosity_map(im2[-1], 20)
 
     q = plot_df(im, a, 'eps_orig', 'g')
-    f = b['g'] != 0
-    plt.sca(q[1][0])
-    plt.plot(b['eps_orig'][f], b['g'][f], 'r.', alpha=0.5)
-    plt.show()
+    # f = b['g'] != 0
+    # plt.sca(q[1][0])
+    # plt.plot(b['eps_orig'][f], b['g'][f], 'r.', alpha=0.5)
+    # plt.show()
 
     # im2[-1]
     # plots = plot_ims(im2)
